@@ -32,9 +32,6 @@
 
 		<!-- note that we also use 3.1.6 in the metasfresh/de.metas.jaxrs module. -->
 		<cxf.version>3.1.6</cxf.version>
-
-		<!-- <metasfresh-dependency.version>[1-master-SNAPSHOT],[2-FRESH-276-SNAPSHOT]</metasfresh-dependency.version>-->
-		<metasfresh-dependency.version>[1-master-SNAPSHOT],[1-master-SNAPSHOT]</metasfresh-dependency.version>
 	</properties>
 
 	<dependencyManagement>
@@ -73,6 +70,18 @@
 	</dependencyManagement>
 
 	<dependencies>
+
+		<dependency>
+			<groupId>de.metas.commons.cxf</groupId>
+			<artifactId>metasfresh-commons-cxf</artifactId>
+			<version>${metasfresh-dependency.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>de.metas.procurement</groupId>
+			<artifactId>de.metas.procurement.sync-api</artifactId>
+			<version>${metasfresh-dependency.version}</version>
+		</dependency>
 
 		<dependency>
 			<groupId>org.vaadin.spring.extensions</groupId>
@@ -234,7 +243,6 @@
 			<groupId>com.fasterxml.jackson.jaxrs</groupId>
 			<artifactId>jackson-jaxrs-json-provider</artifactId>
 		</dependency>
-			<version>${metasfresh-dependency.version}</version>
 		
 		<!-- Logging -->
 		<dependency>
