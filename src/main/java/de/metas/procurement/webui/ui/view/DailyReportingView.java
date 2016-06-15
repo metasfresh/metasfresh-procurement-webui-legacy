@@ -161,6 +161,18 @@ public class DailyReportingView extends MFProcurementNavigationView
 					onProductAdd();
 				}
 			});
+			
+			final Button rfqButton = new Button(i18n.get("DailyReportingView.rfqButton"));
+			rfqButton.setStyleName("no-decoration");
+			rfqButton.setIcon(FontAwesome.MONEY);
+			rfqButton.addClickListener(new ClickListener()
+			{
+				@Override
+				public void buttonClick(final ClickEvent event)
+				{
+					onRfQ();
+				}
+			});
 
 			final Button sendButton = new Button(i18n.get("DailyReportingView.sendButton"));
 			sendButton.setStyleName("no-decoration");
@@ -223,6 +235,12 @@ public class DailyReportingView extends MFProcurementNavigationView
 	{
 		final SelectProductView selectProductView = new SelectProductView(productQtyReportRepository);
 		getNavigationManager().navigateTo(selectProductView);
+	}
+	
+	protected void onRfQ()
+	{
+		final RfQsListView rfqsView = new RfQsListView();
+		getNavigationManager().navigateTo(rfqsView);
 	}
 
 	protected void onSend()

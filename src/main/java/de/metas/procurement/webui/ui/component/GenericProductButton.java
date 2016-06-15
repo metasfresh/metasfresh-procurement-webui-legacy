@@ -1,7 +1,6 @@
 package de.metas.procurement.webui.ui.component;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -20,6 +19,7 @@ import de.metas.procurement.webui.MFProcurementUI;
 import de.metas.procurement.webui.model.Product;
 import de.metas.procurement.webui.ui.model.ProductQtyReportRepository;
 import de.metas.procurement.webui.util.ProductNameCaptionBuilder;
+import de.metas.procurement.webui.util.QuantityUtils;
 import de.metas.procurement.webui.util.SwipeHelper;
 import de.metas.procurement.webui.util.SwipeHelper.ComponentSwipe;
 import de.metas.procurement.webui.util.SwipeHelper.SwipeHandler;
@@ -141,12 +141,7 @@ public abstract class GenericProductButton<BT> extends BeanItemNavigationButton<
 
 	protected final String quantityToString(final BigDecimal qty)
 	{
-		if (qty == null)
-		{
-			return "0";
-		}
-
-		return qty.setScale(0, RoundingMode.UP).toString();
+		return QuantityUtils.toString(qty);
 	}
 
 	protected final String buildCaptionFromProductName(final String productName, final String packingInfo)

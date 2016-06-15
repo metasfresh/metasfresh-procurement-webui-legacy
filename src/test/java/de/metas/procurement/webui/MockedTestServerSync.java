@@ -21,6 +21,7 @@ import de.metas.procurement.sync.protocol.SyncBPartner;
 import de.metas.procurement.sync.protocol.SyncProduct;
 import de.metas.procurement.sync.protocol.SyncProductSuppliesRequest;
 import de.metas.procurement.sync.protocol.SyncProductSupply;
+import de.metas.procurement.sync.protocol.SyncRfQQtyRequest;
 import de.metas.procurement.sync.protocol.SyncWeeklySupply;
 import de.metas.procurement.sync.protocol.SyncWeeklySupplyRequest;
 import de.metas.procurement.webui.sync.annotation.NoCxfServerBind;
@@ -186,5 +187,11 @@ public class MockedTestServerSync implements IServerSync
 	public String getInfoMessage()
 	{
 		return "";
+	}
+
+	@Override
+	public void reportRfQQuantities(SyncRfQQtyRequest request)
+	{
+		logger.info("Got {}", request);
 	}
 }

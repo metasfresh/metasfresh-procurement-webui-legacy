@@ -15,6 +15,8 @@ import de.metas.procurement.sync.protocol.SyncConfirmation;
 import de.metas.procurement.sync.protocol.SyncInfoMessageRequest;
 import de.metas.procurement.sync.protocol.SyncProduct;
 import de.metas.procurement.sync.protocol.SyncProductsRequest;
+import de.metas.procurement.sync.protocol.SyncRfQQty;
+import de.metas.procurement.sync.protocol.SyncRfQQtyRequest;
 import de.metas.procurement.webui.Application;
 
 /*
@@ -59,6 +61,10 @@ public class AgentSync implements IAgentSync
 	@Autowired
 	@Lazy
 	private SyncConfirmationsImportService confirmationsImportService;
+
+	@Autowired
+	@Lazy
+	private SyncRfqImportService rfqImportService;
 
 	public AgentSync()
 	{
@@ -139,5 +145,27 @@ public class AgentSync implements IAgentSync
 				logger.error("Failed importing confirmation: {}", syncConfirmation, e);
 			}
 		}
+	}
+
+	@Override
+	public void syncRfQQuantities(final SyncRfQQtyRequest request)
+	{
+		logger.debug("Importing: {}", request);
+		int countImported = 0;
+		int countError = 0;
+		for (final SyncRfQQty syncRfQQty : request.getQuantities())
+		{
+			try
+			{
+				rfqImportService.importRfQQuantity(syncRfQQty);
+				countImported++;
+			}
+			catch (Exception e)
+			{
+				countError++;
+				logger.error("Failed importing {}. Skipped.", syncRfQQty, e);
+			}
+		}
+		logger.info("{} RfQ quantities imported, got {} errors", countImported, countError);
 	}
 }
