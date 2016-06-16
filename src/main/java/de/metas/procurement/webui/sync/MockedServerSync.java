@@ -11,7 +11,7 @@ import de.metas.procurement.sync.IServerSync;
 import de.metas.procurement.sync.protocol.SyncBPartner;
 import de.metas.procurement.sync.protocol.SyncProduct;
 import de.metas.procurement.sync.protocol.SyncProductSuppliesRequest;
-import de.metas.procurement.sync.protocol.SyncRfQQtyRequest;
+import de.metas.procurement.sync.protocol.SyncRfQChangeRequest;
 import de.metas.procurement.sync.protocol.SyncWeeklySupplyRequest;
 import de.metas.procurement.webui.sync.annotation.NoCxfServerBind;
 import de.metas.procurement.webui.util.DummyDataProducer;
@@ -78,7 +78,7 @@ public class MockedServerSync implements IServerSync
 	}
 
 	@Override
-	public void reportRfQQuantities(SyncRfQQtyRequest request)
+	public void reportRfQChanges(SyncRfQChangeRequest request)
 	{
 		logger.info("Got {}", request);
 	}

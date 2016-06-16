@@ -166,25 +166,4 @@ public class SyncRfqImportService extends AbstractSyncImportService
 		rfqQtyRepo.flush();
 		logger.debug("Deleted: {}", rfqQuantity);
 	}
-
-	public void importRfQQuantity(final SyncRfQQty syncRfQQty)
-	{
-		final String uuid = syncRfQQty.getUuid();
-		final RfqQty rfqQuantityExisting = rfqQtyRepo.findByUuid(uuid);
-		if (rfqQuantityExisting == null)
-		{
-			logger.warn("No existing RfQQty found for {}", syncRfQQty);
-			return;
-		}
-
-		if (syncRfQQty.isDeleted())
-		{
-			deleteRfQQuantity(rfqQuantityExisting);
-			return;
-		}
-
-		importRfQQuantityNoSave(rfqQuantityExisting.getRfq(), syncRfQQty, rfqQuantityExisting);
-		rfqQtyRepo.save(rfqQuantityExisting);
-	}
-
 }
