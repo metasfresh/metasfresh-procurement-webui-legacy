@@ -11,7 +11,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.google.gwt.thirdparty.guava.common.base.Preconditions;
-import com.google.gwt.thirdparty.guava.common.collect.ImmutableList;
 
 import de.metas.procurement.webui.model.BPartner;
 import de.metas.procurement.webui.model.Rfq;
@@ -61,21 +60,25 @@ public class RfQService implements IRfQService
 	@Override
 	public List<RfqHeader> getActiveRfqHeaders(final User user)
 	{
-		// TODO FRESH-402: filter only active ones
-		// TODO FRESH-402: predictable order
-
 		final BPartner bpartner = user.getBpartner();
-		final List<Rfq> rfqs = rfqRepo.findByBpartner(bpartner);
+		final List<Rfq> rfqs = rfqRepo.findByBpartnerAndClosedFalse(bpartner);
 
-		final ImmutableList.Builder<RfqHeader> rfqHeaders = ImmutableList.builder();
+		final List<RfqHeader> rfqHeaders = new ArrayList<>(rfqs.size());
 		for (final Rfq rfq : rfqs)
 		{
+			if(rfq.isClosed())
+			{
+				continue;
+			}
+			
 			final List<RfqQuantityReport> rfqQuantities = retrieveRfqQuantityReports(rfq);
 			final RfqHeader rfqHeader = RfqHeader.of(rfq, rfqQuantities);
 			rfqHeaders.add(rfqHeader);
 		}
-
-		return rfqHeaders.build();
+		
+		return RfqHeader.ORDERING_ByDateStart
+				.compound(RfqHeader.ORDERING_ByProductName)
+				.immutableSortedCopy(rfqHeaders);
 	}
 
 	private List<RfqQuantityReport> retrieveRfqQuantityReports(final Rfq rfq)

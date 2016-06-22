@@ -1,11 +1,13 @@
 package de.metas.procurement.webui.ui.model;
 
 import java.math.BigDecimal;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
 import com.google.gwt.thirdparty.guava.common.collect.ImmutableList;
+import com.google.gwt.thirdparty.guava.common.collect.Ordering;
 import com.vaadin.ui.UI;
 
 import de.metas.procurement.webui.model.Product;
@@ -46,6 +48,28 @@ public class RfqHeader implements ISendService.ISendAwareBean
 	{
 		return new RfqHeader(rfq, rfqQuantities);
 	}
+
+	public static final Ordering<RfqHeader> ORDERING_ByDateStart = Ordering.from(new Comparator<RfqHeader>()
+	{
+		@Override
+		public int compare(final RfqHeader o1, final RfqHeader o2)
+		{
+			final Date dateStart1 = o1.getDateStart();
+			final Date dateStart2 = o2.getDateStart();
+			return dateStart1.compareTo(dateStart2);
+		}
+	});
+
+	public static final Ordering<RfqHeader> ORDERING_ByProductName = Ordering.from(new Comparator<RfqHeader>()
+	{
+		@Override
+		public int compare(final RfqHeader o1, final RfqHeader o2)
+		{
+			final String productName1 = o1.getProductName();
+			final String productName2 = o2.getProductName();
+			return productName1.compareTo(productName2);
+		}
+	});
 
 	private final String rfq_uuid;
 

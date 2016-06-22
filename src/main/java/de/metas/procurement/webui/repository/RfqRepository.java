@@ -35,5 +35,5 @@ import de.metas.procurement.webui.model.Rfq;
 @Transactional
 public interface RfqRepository extends AbstractRepository<Rfq>
 {
-	List<Rfq> findByBpartner(final BPartner bpartner);
+	List<Rfq> findByBpartnerAndClosedFalse(final BPartner bpartner);
 }
