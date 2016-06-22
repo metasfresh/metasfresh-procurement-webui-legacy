@@ -43,8 +43,8 @@ import de.metas.procurement.webui.event.UserLogoutRequestEvent;
 import de.metas.procurement.webui.model.User;
 import de.metas.procurement.webui.server.NotificationErrorHandler;
 import de.metas.procurement.webui.service.IContractsService;
+import de.metas.procurement.webui.service.ISendService;
 import de.metas.procurement.webui.ui.component.MFNavigator;
-import de.metas.procurement.webui.ui.model.ProductQtyReportRepository;
 import de.metas.procurement.webui.ui.view.LoginView;
 import de.metas.procurement.webui.ui.view.MainView;
 import de.metas.procurement.webui.ui.view.PasswordResetView;
@@ -242,12 +242,12 @@ public class MFProcurementUI extends UI
 	private final void doLogout()
 	{
 		logger.debug("User logging out...");
-		
-		getSession().setAttribute(MFSession.class, null);
 
+		getSession().setAttribute(MFSession.class, null);
 		JavascriptUtils.setBeforePageUnloadMessage(null);
 
-		getNavigator().navigateToLoginView();
+		getPage().setLocation("/");
+		close();
 		
 		logger.debug("User logged done");
 	}
@@ -347,8 +347,10 @@ public class MFProcurementUI extends UI
 
 	private final boolean confirmNotSentProductQtyReports()
 	{
-		final ProductQtyReportRepository productQtyReportRepository = getMFSession().getProductQtyReportRepository();
-		if (productQtyReportRepository.getNotSentCounter() <= 0)
+		final MFSession mfSession = getMFSession();
+
+		final ISendService sendService = mfSession.getSendService();
+		if (sendService.getNotSentCounter() <= 0)
 		{
 			return true;
 		}
@@ -376,7 +378,7 @@ public class MFProcurementUI extends UI
 			@Override
 			public void buttonClick(final ClickEvent event)
 			{
-				productQtyReportRepository.sendAll();
+				sendService.sendAll();
 				confirmDialog.close();
 				doLogout();
 			}

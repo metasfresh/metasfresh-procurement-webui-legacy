@@ -19,11 +19,10 @@ import com.google.gwt.thirdparty.guava.common.cache.CacheBuilder;
 import com.google.gwt.thirdparty.guava.common.cache.CacheLoader;
 import com.google.gwt.thirdparty.guava.common.cache.LoadingCache;
 import com.google.gwt.thirdparty.guava.common.collect.ImmutableList;
-import com.vaadin.data.Property;
 import com.vaadin.data.util.BeanItem;
-import com.vaadin.data.util.ObjectProperty;
 
 import de.metas.procurement.webui.Application;
+import de.metas.procurement.webui.MFProcurementUI;
 import de.metas.procurement.webui.model.BPartner;
 import de.metas.procurement.webui.model.ContractLine;
 import de.metas.procurement.webui.model.Contracts;
@@ -31,6 +30,7 @@ import de.metas.procurement.webui.model.Product;
 import de.metas.procurement.webui.model.ProductSupply;
 import de.metas.procurement.webui.model.User;
 import de.metas.procurement.webui.service.IProductSuppliesService;
+import de.metas.procurement.webui.service.ISendService;
 import de.metas.procurement.webui.util.DateRange;
 import de.metas.procurement.webui.util.DateUtils;
 
@@ -61,9 +61,9 @@ public class ProductQtyReportRepository
 	@Autowired
     private I18N i18n;
 
-	@Autowired(required = true)
+	@Autowired
 	IProductSuppliesService productSuppliesRepository;
-
+	
 	private final User user;
 	private final Contracts contracts;
 
@@ -95,8 +95,6 @@ public class ProductQtyReportRepository
 		this.user = user;
 		this.contracts = contracts;
 	}
-
-	private final ObjectProperty<Integer> notSentCounterProperty = new ObjectProperty<>(0);
 
 	private final User getUser()
 	{
@@ -328,46 +326,14 @@ public class ProductQtyReportRepository
 
 		//
 		// Flag as sent
-		productQtyReport.setQtySent(qty);
+		productQtyReport.setSentFieldsFromActualFields();
 		updateSentStatus(item);
 	}
 
 	public void updateSentStatus(final BeanItem<ProductQtyReport> item)
 	{
-		final ProductQtyReport bean = item.getBean();
-		final boolean sent = bean.getQty().compareTo(bean.getQtySent()) == 0;
-		
-		@SuppressWarnings("unchecked")
-		final Property<Boolean> sentProperty = item.getItemProperty(ProductQtyReport.PROPERY_Sent);
-		if (sentProperty.getValue() == sent)
-		{
-			return;
-		}
-
-		sentProperty.setValue(sent);
-
-		//
-		// Adjust the not-sent counter
-		if (sent)
-		{
-			final int counter = notSentCounterProperty.getValue();
-			notSentCounterProperty.setValue(counter > 0 ? counter - 1: 0); // guard against negative counters (i.e. some bug)
-		}
-		else
-		{
-			int counter = notSentCounterProperty.getValue();
-			notSentCounterProperty.setValue(counter + 1);
-		}
-	}
-	
-	public Property<Integer> getNotSentCounterProperty()
-	{
-		return notSentCounterProperty;
-	}
-
-	public int getNotSentCounter()
-	{
-		return notSentCounterProperty.getValue();
+		final ISendService sendService = MFProcurementUI.getCurrentMFSession().getSendService();
+		sendService.updateSentStatus(item);
 	}
 
 	public WeekProductQtyReportContainer getWeek(final Date aDayInWeek)

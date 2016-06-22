@@ -1,12 +1,9 @@
 package de.metas.procurement.webui.service;
 
-import java.util.Date;
 import java.util.List;
-import java.util.Map;
 
-import de.metas.procurement.webui.model.Rfq;
-import de.metas.procurement.webui.model.RfqQty;
 import de.metas.procurement.webui.model.User;
+import de.metas.procurement.webui.ui.model.RfqHeader;
 
 /*
  * #%L
@@ -32,9 +29,9 @@ import de.metas.procurement.webui.model.User;
 
 public interface IRfQService
 {
+	List<RfqHeader> getActiveRfqHeaders(User user);
 
-	List<Rfq> getActiveRfQs(User user);
+	void send(RfqHeader rfqHeader);
 
-	Map<Date, RfqQty> getRfQQuantitiesIndexedByDay(Rfq rfq);
 
 }

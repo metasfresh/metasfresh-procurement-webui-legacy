@@ -1,13 +1,6 @@
-package de.metas.procurement.webui.repository;
+package de.metas.procurement.webui.ui.model;
 
-import java.util.List;
-
-import javax.transaction.Transactional;
-
-import org.springframework.stereotype.Repository;
-
-import de.metas.procurement.webui.model.BPartner;
-import de.metas.procurement.webui.model.Rfq;
+import com.vaadin.data.util.BeanItemContainer;
 
 /*
  * #%L
@@ -31,9 +24,12 @@ import de.metas.procurement.webui.model.Rfq;
  * #L%
  */
 
-@Repository
-@Transactional
-public interface RfqRepository extends AbstractRepository<Rfq>
+@SuppressWarnings("serial")
+public class RfqQuantityReportContainer extends BeanItemContainer<RfqQuantityReport>
 {
-	List<Rfq> findByBpartner(final BPartner bpartner);
+	public RfqQuantityReportContainer()
+	{
+		super(RfqQuantityReport.class);
+	}
+
 }

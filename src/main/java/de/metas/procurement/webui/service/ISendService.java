@@ -1,7 +1,7 @@
-package de.metas.procurement.webui.util;
+package de.metas.procurement.webui.service;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
+import com.vaadin.data.Property;
+import com.vaadin.data.util.BeanItem;
 
 /*
  * #%L
@@ -25,37 +25,37 @@ import java.math.RoundingMode;
  * #L%
  */
 
-public final class QuantityUtils
+/**
+ * Central point for controlling all aspects around "Send" objects to metasfresh server.
+ * 
+ * @author metas-dev <dev@metas-fresh.com>
+ *
+ */
+public interface ISendService
 {
-	private QuantityUtils()
+	/** Implemented by beans which are aware of sent status */
+	interface ISendAwareBean
 	{
+		String PROPERTY_Sent = "sent";
+
+		void setSent(boolean sent);
+
+		boolean isSent();
+
+		boolean checkSent();
+
+		void setSentFieldsFromActualFields();
 	}
 
-	public static final String toString(final BigDecimal qty)
-	{
-		if (qty == null)
-		{
-			return "0";
-		}
+	Property<Integer> getNotSentCounterProperty();
 
-		return qty.setScale(0, RoundingMode.UP).toString();
-	}
-	
-	public static final BigDecimal toQuantity(String qtyStr)
-	{
-		if (qtyStr == null)
-		{
-			return BigDecimal.ZERO;
-		}
-		
-		qtyStr = qtyStr.trim();
-		if(qtyStr.isEmpty())
-		{
-			return BigDecimal.ZERO;
-		}
+	int getNotSentCounter();
 
-		return new BigDecimal(qtyStr);
-	}
+	void incrementNotSentCounter();
 
+	void decrementNotSentCounter();
 
+	<BT extends ISendAwareBean> void updateSentStatus(BeanItem<BT> item);
+
+	void sendAll();
 }

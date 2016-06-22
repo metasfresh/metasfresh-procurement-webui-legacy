@@ -5,6 +5,7 @@ import java.util.concurrent.TimeUnit;
 
 import de.metas.procurement.webui.model.ProductSupply;
 import de.metas.procurement.webui.model.WeekSupply;
+import de.metas.procurement.webui.ui.model.RfqHeader;
 
 /*
  * #%L
@@ -36,5 +37,7 @@ public interface IServerSyncService
 
 	void reportWeeklySupplyAsync(List<WeekSupply> weeklySupplies);
 
+	void reportRfQChanges(final List<RfqHeader> rfqHeaders);
 
+	ISyncAfterCommitCollector syncAfterCommit();
 }

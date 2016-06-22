@@ -1,28 +1,28 @@
 package de.metas.procurement.webui.ui.view;
 
 import java.math.BigDecimal;
-import java.text.DateFormat;
 import java.util.Date;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.vaadin.spring.i18n.I18N;
 
 import com.google.gwt.thirdparty.guava.common.base.Preconditions;
-import com.vaadin.addon.touchkit.ui.NavigationButton;
-import com.vaadin.addon.touchkit.ui.NavigationButton.NavigationButtonClickEvent;
-import com.vaadin.addon.touchkit.ui.NavigationButton.NavigationButtonClickListener;
 import com.vaadin.addon.touchkit.ui.VerticalComponentGroup;
+import com.vaadin.data.util.BeanItem;
+import com.vaadin.ui.Component;
+import com.vaadin.ui.Label;
 import com.vaadin.ui.UI;
 import com.vaadin.ui.VerticalLayout;
 
-import de.metas.procurement.webui.model.Rfq;
-import de.metas.procurement.webui.model.RfqQty;
-import de.metas.procurement.webui.service.IRfQService;
+import de.metas.procurement.webui.ui.component.BeanItemNavigationButton;
+import de.metas.procurement.webui.ui.component.BeansVerticalComponentGroup;
+import de.metas.procurement.webui.ui.model.RfqHeader;
+import de.metas.procurement.webui.ui.model.RfqModel;
+import de.metas.procurement.webui.ui.model.RfqQuantityReport;
 import de.metas.procurement.webui.util.QuantityUtils;
+import de.metas.procurement.webui.util.StringToDateConverter;
+import de.metas.procurement.webui.util.StringToPriceConverter;
+import de.metas.procurement.webui.util.StringToQuantityConverter;
 
 /*
  * #%L
@@ -46,83 +46,225 @@ import de.metas.procurement.webui.util.QuantityUtils;
  * #L%
  */
 
+/**
+ * Displays one RfQ
+ *
+ * @author metas-dev <dev@metas-fresh.com>
+ *
+ */
 @SuppressWarnings("serial")
 public class RfQView extends MFProcurementNavigationView
 {
-	@Autowired
-	private IRfQService rfqService;
+	private static final String STYLE = "rfq-view";
 
 	@Autowired
 	private I18N i18n;
 
-	private final Rfq rfq;
-	private final Map<Date, RfqQty> day2qty;
+	private BeanItem<RfqHeader> _rfqHeaderItem;
+	private RfqModel _model; // lazy
 
-	private final DateFormat dateFormat;
+	private RfqHeaderPanel rfqHeaderPanel;
+	private BeansVerticalComponentGroup<RfqQuantityReport> rfqQuantityButtons;
 
-	public RfQView(final Rfq rfq)
+	public RfQView()
 	{
 		super();
-		// Application.autowire(this);
 
-		this.rfq = Preconditions.checkNotNull(rfq, "rfq is null");
-		day2qty = rfqService.getRfQQuantitiesIndexedByDay(rfq);
+		createUI();
+	}
 
-		final Locale locale = UI.getCurrent().getLocale();
-		dateFormat = DateFormat.getDateInstance(DateFormat.SHORT, locale);
+	private void createUI()
+	{
+		addStyleName(STYLE);
 
 		setCaption(i18n.get("RfQView.caption"));
+
+		final VerticalLayout content = new VerticalLayout();
+
+		//
+		// RfQ header
+		{
+			rfqHeaderPanel = new RfqHeaderPanel();
+			content.addComponent(rfqHeaderPanel);
+		}
+
+		//
+		// Daily quantities
+		{
+			rfqQuantityButtons = new BeansVerticalComponentGroup<RfqQuantityReport>()
+			{
+				@Override
+				protected Component createItemComponent(final BeanItem<RfqQuantityReport> item)
+				{
+					final RfqQuantityButton button = new RfqQuantityButton();
+					button.setItem(item);
+					return button;
+				}
+
+			};
+			rfqQuantityButtons.setCaption(i18n.getWithDefault("RfQView.DailyQuantities", "Daily quantities"));
+
+			content.addComponent(rfqQuantityButtons);
+
+		}
+
+		setContent(content);
 	}
 
 	@Override
-	public void attach()
+	protected void onBecomingVisible()
 	{
-		super.attach();
+		super.onBecomingVisible();
 
-		final VerticalLayout content = new VerticalLayout();
-		setContent(content);
+		final RfqModel model = getModel();
+		rfqHeaderPanel.setItem(model.getRfqHeaderItem());
+		rfqQuantityButtons.setContainerDataSource(model.getRfqQuantitiesContainer());
+	}
 
-		final VerticalComponentGroup qtysPanel = new VerticalComponentGroup();
-		final Set<Date> days = new TreeSet<>(day2qty.keySet());
-		for (final Date day : days)
+	private RfqModel getModel()
+	{
+		if (_model == null)
 		{
-			final RfqQty qty = day2qty.get(day);
-			final NavigationButton button = createButton(qty);
-			qtysPanel.addComponent(button);
+			final BeanItem<RfqHeader> rfqHeaderItem = getRfqHeaderItem();
+			_model = new RfqModel(rfqHeaderItem);
 		}
-		content.addComponent(qtysPanel);
+		return _model;
 	}
 
-	private NavigationButton createButton(final RfqQty rfqQty)
+	public void setRfqHeaderItem(final BeanItem<RfqHeader> rfqHeaderItem)
 	{
-		final NavigationButton button = new NavigationButton();
-		button.setTargetView(this);
-
-		final Date day = rfqQty.getDatePromised();
-		final String dayStr = dateFormat.format(day);
-		button.setCaption(dayStr);
-
-		final BigDecimal qty = rfqQty.getQtyPromised();
-		final String qtyStr = QuantityUtils.toString(qty);
-		button.setDescription(qtyStr);
-
-		// TODO: FRESH-402: more info, pimp it up!
-
-		button.addClickListener(new NavigationButtonClickListener()
+		if (_rfqHeaderItem == rfqHeaderItem)
 		{
-			@Override
-			public void buttonClick(final NavigationButtonClickEvent event)
-			{
-				onRfQQuantitySelected(rfqQty);
-			}
-		});
+			return;
+		}
 
-		return button;
+		_rfqHeaderItem = rfqHeaderItem;
+		_model = null;
 	}
 
-	protected void onRfQQuantitySelected(final RfqQty rfqQty)
+	private BeanItem<RfqHeader> getRfqHeaderItem()
 	{
-		final RfQQuantityView qtyView = new RfQQuantityView(rfqQty);
-		getNavigationManager().navigateTo(qtyView);
+		Preconditions.checkNotNull(_rfqHeaderItem);
+		return _rfqHeaderItem;
+	}
+
+	private class RfqHeaderPanel extends VerticalComponentGroup
+	{
+		private final Label productNameField;
+		private final Label productPackingInfoField;
+		private final Label dateStartField;
+		private final Label dateEndField;
+		private final Label dateCloseField;
+		private final RfqPriceButton priceButton;
+		private final Label qtyRequestedField;
+		private final Label qtyPromisedField;
+
+		public RfqHeaderPanel()
+		{
+			final StringToDateConverter dateConverter = StringToDateConverter.instance;
+
+			productNameField = new Label();
+			productNameField.setCaption(i18n.getWithDefault("RfQView.ProductName", "Product"));
+			addComponent(productNameField);
+
+			productPackingInfoField = new Label();
+			productPackingInfoField.setCaption(i18n.getWithDefault("RfQView.ProductPackingInfo", "Packing"));
+			addComponent(productPackingInfoField);
+
+			dateStartField = new Label();
+			dateStartField.setCaption(i18n.getWithDefault("RfQView.DateStart", "From"));
+			dateStartField.setConverter(dateConverter);
+			addComponent(dateStartField);
+
+			dateEndField = new Label();
+			dateEndField.setCaption(i18n.getWithDefault("RfQView.DateEnd", "To"));
+			dateEndField.setConverter(dateConverter);
+			addComponent(dateEndField);
+
+			dateCloseField = new Label();
+			dateCloseField.setCaption(i18n.getWithDefault("RfQView.DateClose", "Close"));
+			dateCloseField.setConverter(dateConverter);
+			addComponent(dateCloseField);
+
+			priceButton = new RfqPriceButton();
+			priceButton.setCaption(i18n.getWithDefault("RfQView.Price", "Price"));
+			addComponent(priceButton);
+
+			qtyRequestedField = new Label();
+			qtyRequestedField.setCaption(i18n.getWithDefault("RfQView.QtyRequested", "Qty requested"));
+			qtyRequestedField.setConverter(StringToQuantityConverter.instance);
+			addComponent(qtyRequestedField);
+
+			qtyPromisedField = new Label();
+			qtyPromisedField.setCaption(i18n.getWithDefault("RfQView.QtyPromised", "Qty promised"));
+			qtyPromisedField.setConverter(StringToQuantityConverter.instance);
+			addComponent(qtyPromisedField);
+		}
+
+		public void setItem(final BeanItem<RfqHeader> rfqHeaderItem)
+		{
+			productNameField.setPropertyDataSource(rfqHeaderItem.getItemProperty(RfqHeader.PROPERTY_ProductName));
+			productPackingInfoField.setPropertyDataSource(rfqHeaderItem.getItemProperty(RfqHeader.PROPERTY_ProductPackingInfo));
+			dateStartField.setPropertyDataSource(rfqHeaderItem.getItemProperty(RfqHeader.PROPERTY_DateStart));
+			dateEndField.setPropertyDataSource(rfqHeaderItem.getItemProperty(RfqHeader.PROPERTY_DateEnd));
+			dateCloseField.setPropertyDataSource(rfqHeaderItem.getItemProperty(RfqHeader.PROPERTY_DateClose));
+			priceButton.setItem(rfqHeaderItem);
+			qtyRequestedField.setPropertyDataSource(rfqHeaderItem.getItemProperty(RfqHeader.PROPERTY_QtyRequested));
+			qtyPromisedField.setPropertyDataSource(rfqHeaderItem.getItemProperty(RfqHeader.PROPERTY_QtyPromised));
+		}
+	}
+
+	private static class RfqPriceButton extends BeanItemNavigationButton<RfqHeader>
+	{
+		private final NumberEditorView<RfqHeader> editorView = new NumberEditorView<>(RfqHeader.PROPERTY_Price);
+
+		public RfqPriceButton()
+		{
+			super();
+			setTargetView(editorView);
+		}
+
+		@Override
+		protected void onItemChanged(final BeanItem<RfqHeader> item)
+		{
+			editorView.setItem(item);
+		}
+
+		@Override
+		protected void updateUI(final RfqHeader bean)
+		{
+			final BigDecimal price = bean.getPrice();
+			final String priceStr = StringToPriceConverter.instance.convertToPresentation(price, String.class, UI.getCurrent().getLocale());
+			setDescription(priceStr);
+		}
+	}
+
+	private static class RfqQuantityButton extends BeanItemNavigationButton<RfqQuantityReport>
+	{
+		private final NumberEditorView<RfqQuantityReport> editorView = new NumberEditorView<>(RfqQuantityReport.PROPERTY_Qty);
+
+		public RfqQuantityButton()
+		{
+			super();
+			setTargetView(editorView);
+		}
+
+		@Override
+		protected void onItemChanged(final BeanItem<RfqQuantityReport> item)
+		{
+			editorView.setItem(item);
+		}
+
+		@Override
+		protected void updateUI(final RfqQuantityReport rfqQuantityReport)
+		{
+			final Date day = rfqQuantityReport.getDay();
+			final String dayStr = StringToDateConverter.instance.convertToPresentation(day, String.class, getLocale());
+			setCaption(dayStr);
+
+			final BigDecimal qty = rfqQuantityReport.getQty();
+			final String qtyStr = QuantityUtils.toString(qty);
+			setDescription(qtyStr);
+		}
 	}
 }

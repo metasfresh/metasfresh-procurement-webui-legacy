@@ -1,5 +1,6 @@
 package de.metas.procurement.webui.service.impl;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -7,8 +8,10 @@ import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import com.google.gwt.thirdparty.guava.common.collect.ImmutableMap;
+import com.google.gwt.thirdparty.guava.common.base.Preconditions;
+import com.google.gwt.thirdparty.guava.common.collect.ImmutableList;
 
 import de.metas.procurement.webui.model.BPartner;
 import de.metas.procurement.webui.model.Rfq;
@@ -17,6 +20,10 @@ import de.metas.procurement.webui.model.User;
 import de.metas.procurement.webui.repository.RfqQtyRepository;
 import de.metas.procurement.webui.repository.RfqRepository;
 import de.metas.procurement.webui.service.IRfQService;
+import de.metas.procurement.webui.sync.IServerSyncService;
+import de.metas.procurement.webui.ui.model.RfqHeader;
+import de.metas.procurement.webui.ui.model.RfqQuantityReport;
+import de.metas.procurement.webui.util.DateRange;
 import de.metas.procurement.webui.util.DateUtils;
 
 /*
@@ -32,11 +39,11 @@ import de.metas.procurement.webui.util.DateUtils;
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public
- * License along with this program.  If not, see
+ * License along with this program. If not, see
  * <http://www.gnu.org/licenses/gpl-2.0.html>.
  * #L%
  */
@@ -48,17 +55,55 @@ public class RfQService implements IRfQService
 	private RfqRepository rfqRepo;
 	@Autowired
 	private RfqQtyRepository rfqQuantityRepo;
+	@Autowired
+	private IServerSyncService syncService;
 
 	@Override
-	public List<Rfq> getActiveRfQs(final User user)
+	public List<RfqHeader> getActiveRfqHeaders(final User user)
 	{
+		// TODO FRESH-402: filter only active ones
+		// TODO FRESH-402: predictable order
+
 		final BPartner bpartner = user.getBpartner();
-		// TODO FRESH-402: filter only active ones!
-		return rfqRepo.findByBpartner(bpartner);
+		final List<Rfq> rfqs = rfqRepo.findByBpartner(bpartner);
+
+		final ImmutableList.Builder<RfqHeader> rfqHeaders = ImmutableList.builder();
+		for (final Rfq rfq : rfqs)
+		{
+			final List<RfqQuantityReport> rfqQuantities = retrieveRfqQuantityReports(rfq);
+			final RfqHeader rfqHeader = RfqHeader.of(rfq, rfqQuantities);
+			rfqHeaders.add(rfqHeader);
+		}
+
+		return rfqHeaders.build();
 	}
 
-	@Override
-	public Map<Date, RfqQty> getRfQQuantitiesIndexedByDay(final Rfq rfq)
+	private List<RfqQuantityReport> retrieveRfqQuantityReports(final Rfq rfq)
+	{
+		Preconditions.checkNotNull(rfq, "rfq is null");
+		final Map<Date, RfqQty> day2qtyExisting = getRfQQuantitiesIndexedByDatePromised(rfq);
+
+		final List<RfqQuantityReport> rfqQuantityReports = new ArrayList<>();
+		for (final Date day : DateRange.of(rfq.getDateStart(), rfq.getDateEnd()).daysIterable())
+		{
+			final RfqQty rfqQty = day2qtyExisting.get(day);
+			final RfqQuantityReport rfqQuantityReport;
+			if (rfqQty == null)
+			{
+				rfqQuantityReport = RfqQuantityReport.of(rfq, day);
+			}
+			else
+			{
+				rfqQuantityReport = RfqQuantityReport.of(rfq, day, rfqQty.getQtyPromised());
+			}
+
+			rfqQuantityReports.add(rfqQuantityReport);
+		}
+
+		return rfqQuantityReports;
+	}
+
+	private Map<Date, RfqQty> getRfQQuantitiesIndexedByDatePromised(final Rfq rfq)
 	{
 		final Map<Date, RfqQty> day2qty = new HashMap<>();
 		for (final RfqQty qty : rfqQuantityRepo.findByRfq(rfq))
@@ -66,7 +111,58 @@ public class RfQService implements IRfQService
 			final Date day = DateUtils.truncToDay(qty.getDatePromised());
 			day2qty.put(day, qty);
 		}
+
+		return day2qty;
+	}
+
+	@Override
+	@Transactional
+	public void send(final RfqHeader rfqHeader)
+	{
+		if (rfqHeader.checkSent())
+		{
+			return;
+		}
+
+		//
+		// Save it
+		save(rfqHeader);
 		
-		return ImmutableMap.copyOf(day2qty);
+		syncService.syncAfterCommit().add(rfqHeader);
+	}
+
+	private void save(final RfqHeader rfqHeader)
+	{
+		//
+		// Save header
+		final Rfq rfqRecord = rfqRepo.findByUuid(rfqHeader.getRfq_uuid());
+		{
+			rfqRecord.setPricePromised(rfqHeader.getPrice());
+			rfqRepo.save(rfqRecord);
+		}
+
+		//
+		// Save lines
+		final Map<Date, RfqQty> rfqQuantityRecords = getRfQQuantitiesIndexedByDatePromised(rfqRecord);
+		for (final RfqQuantityReport rfqQuantityReport : rfqHeader.getQuantities())
+		{
+			final Date day = rfqQuantityReport.getDay();
+			RfqQty rfqQtyRecord = rfqQuantityRecords.get(day);
+			if (rfqQtyRecord == null)
+			{
+				// Skip saving ZERO reports, if not already saved
+				if (rfqQuantityReport.getQty().signum() == 0)
+				{
+					continue;
+				}
+
+				rfqQtyRecord = new RfqQty();
+				rfqQtyRecord.setRfq(rfqRecord);
+				rfqQtyRecord.setDatePromised(day);
+			}
+
+			rfqQtyRecord.setQtyPromised(rfqQuantityReport.getQty());
+			rfqQuantityRepo.save(rfqQtyRecord);
+		}
 	}
 }

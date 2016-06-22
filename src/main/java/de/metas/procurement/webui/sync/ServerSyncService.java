@@ -1,5 +1,6 @@
 package de.metas.procurement.webui.sync;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
@@ -16,9 +17,13 @@ import org.springframework.core.task.TaskExecutor;
 import org.springframework.jmx.export.annotation.ManagedOperation;
 import org.springframework.jmx.export.annotation.ManagedResource;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationAdapter;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.google.gwt.thirdparty.guava.common.base.Preconditions;
 import com.google.gwt.thirdparty.guava.common.base.Throwables;
+import com.google.gwt.thirdparty.guava.common.collect.ImmutableList;
 import com.google.gwt.thirdparty.guava.common.eventbus.AsyncEventBus;
 import com.google.gwt.thirdparty.guava.common.eventbus.DeadEvent;
 import com.google.gwt.thirdparty.guava.common.eventbus.Subscribe;
@@ -30,12 +35,20 @@ import de.metas.procurement.sync.protocol.SyncInfoMessageRequest;
 import de.metas.procurement.sync.protocol.SyncProductSuppliesRequest;
 import de.metas.procurement.sync.protocol.SyncProductSupply;
 import de.metas.procurement.sync.protocol.SyncProductsRequest;
+import de.metas.procurement.sync.protocol.SyncRfQChangeRequest;
+import de.metas.procurement.sync.protocol.SyncRfQPriceChangeEvent;
+import de.metas.procurement.sync.protocol.SyncRfQQtyChangeEvent;
 import de.metas.procurement.sync.protocol.SyncWeeklySupply;
 import de.metas.procurement.sync.protocol.SyncWeeklySupplyRequest;
+import de.metas.procurement.webui.model.AbstractSyncConfirmAwareEntity;
 import de.metas.procurement.webui.model.ProductSupply;
+import de.metas.procurement.webui.model.SyncConfirm;
 import de.metas.procurement.webui.model.WeekSupply;
 import de.metas.procurement.webui.repository.ProductSupplyRepository;
+import de.metas.procurement.webui.repository.SyncConfirmRepository;
 import de.metas.procurement.webui.service.IProductSuppliesService;
+import de.metas.procurement.webui.ui.model.RfqHeader;
+import de.metas.procurement.webui.ui.model.RfqQuantityReport;
 import de.metas.procurement.webui.util.DateUtils;
 import de.metas.procurement.webui.util.EventBusLoggingSubscriberExceptionHandler;
 
@@ -52,11 +65,11 @@ import de.metas.procurement.webui.util.EventBusLoggingSubscriberExceptionHandler
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public
- * License along with this program.  If not, see
+ * License along with this program. If not, see
  * <http://www.gnu.org/licenses/gpl-2.0.html>.
  * #L%
  */
@@ -87,6 +100,10 @@ public class ServerSyncService implements IServerSyncService
 	@Autowired
 	@Lazy
 	private IProductSuppliesService productSuppliesService;
+	
+	@Autowired
+	@Lazy
+	private SyncConfirmRepository syncConfirmRepo;
 
 	private final CountDownLatch initialSync = new CountDownLatch(1);
 
@@ -383,4 +400,202 @@ public class ServerSyncService implements IServerSyncService
 		}
 
 	}
+
+	@Override
+	public void reportRfQChanges(final List<RfqHeader> rfqHeaders)
+	{
+		final SyncRfQChangeRequest request = createSyncRfQChangeRequest(rfqHeaders);
+		if (request == null || request.isEmpty())
+		{
+			logger.debug("No RfQ change requests to enqueue");
+			return;
+		}
+
+		logger.debug("Enqueuing: {}", request);
+		eventBus.post(request);
+	}
+
+	@Subscribe
+	public void process(final SyncRfQChangeRequest request)
+	{
+		try
+		{
+			serverSync.reportRfQChanges(request);
+		}
+		catch (final Exception e)
+		{
+			// thx http://stackoverflow.com/questions/25367566/severe-could-not-dispatch-event-eventbus-com-google-common-eventbus-subscriber
+			logger.error("Caught exception trying to process {}", request, e);
+		}
+
+	}
+
+	private SyncRfQChangeRequest createSyncRfQChangeRequest(final List<RfqHeader> rfqHeaders)
+	{
+		final SyncRfQChangeRequest changeRequest = new SyncRfQChangeRequest();
+		if (rfqHeaders == null || rfqHeaders.isEmpty())
+		{
+			return changeRequest;
+		}
+
+		for (final RfqHeader rfqHeader : rfqHeaders)
+		{
+			SyncRfQPriceChangeEvent priceChangeEvent = createSyncRfQPriceChangeEvent(rfqHeader);
+			changeRequest.getPriceChangeEvents().add(priceChangeEvent);
+
+			for (final RfqQuantityReport rfqQuantityReport : rfqHeader.getQuantities())
+			{
+				final SyncRfQQtyChangeEvent qtyChangeEvent = createSyncRfQQtyChangeEvent(rfqQuantityReport);
+				changeRequest.getQtyChangeEvents().add(qtyChangeEvent);
+			}
+		}
+
+		return changeRequest;
+	}
+
+	private SyncRfQPriceChangeEvent createSyncRfQPriceChangeEvent(final RfqHeader rfqRecord)
+	{
+		final SyncRfQPriceChangeEvent priceChangeEvent = new SyncRfQPriceChangeEvent();
+		priceChangeEvent.setRfq_uuid(rfqRecord.getRfq_uuid());
+		priceChangeEvent.setProduct_uuid(rfqRecord.getProduct_uuid());
+		priceChangeEvent.setPrice(rfqRecord.getPrice());
+		return priceChangeEvent;
+	}
+
+	private SyncRfQQtyChangeEvent createSyncRfQQtyChangeEvent(RfqQuantityReport rfqQtyReport)
+	{
+		SyncRfQQtyChangeEvent qtyChangeEvent = new SyncRfQQtyChangeEvent();
+		qtyChangeEvent.setRfq_uuid(rfqQtyReport.getRfq_uuid());
+		qtyChangeEvent.setDay(rfqQtyReport.getDay());
+		qtyChangeEvent.setProduct_uuid(rfqQtyReport.getProduct_uuid());
+		qtyChangeEvent.setQty(rfqQtyReport.getQty());
+		return qtyChangeEvent;
+	}
+
+	@Override
+	public ISyncAfterCommitCollector syncAfterCommit()
+	{
+		if (!TransactionSynchronizationManager.isActualTransactionActive())
+		{
+			throw new RuntimeException("Not in transaction");
+		}
+
+		SyncAfterCommit instance = null;
+		for (final TransactionSynchronization sync : TransactionSynchronizationManager.getSynchronizations())
+		{
+			if (sync instanceof SyncAfterCommit)
+			{
+				instance = (SyncAfterCommit)sync;
+				logger.debug("Found SyncAfterCommit instance: {}", instance);
+			}
+		}
+
+		if (instance == null)
+		{
+			instance = new SyncAfterCommit();
+			TransactionSynchronizationManager.registerSynchronization(instance);
+
+			logger.debug("Registered synchronization: {}", instance);
+		}
+
+		return instance;
+	}
+
+	/**
+	 * Creates {@link SyncConfirm} records and invokes {@link IServerSyncService}.
+	 *
+	 * @author metas-dev <dev@metasfresh.com>
+	 *
+	 */
+	private final class SyncAfterCommit extends TransactionSynchronizationAdapter implements ISyncAfterCommitCollector
+	{
+		private final List<ProductSupply> productSupplies = new ArrayList<>();
+		private final List<WeekSupply> weeklySupplies = new ArrayList<>();
+		private final List<RfqHeader> rfqHeaders = new ArrayList<>();
+
+		@Override
+		public ISyncAfterCommitCollector add(final ProductSupply productSupply)
+		{
+			createAndStoreSyncConfirmRecord(productSupply);
+			productSupplies.add(productSupply);
+
+			logger.debug("Enqueued {}", productSupply);
+			return this;
+		}
+
+		@Override
+		public ISyncAfterCommitCollector add(final WeekSupply weeklySupply)
+		{
+			createAndStoreSyncConfirmRecord(weeklySupply);
+			weeklySupplies.add(weeklySupply);
+			return this;
+		}
+
+		@Override
+		public ISyncAfterCommitCollector add(final RfqHeader rfqHeader)
+		{
+			rfqHeaders.add(rfqHeader);
+			return this;
+		}
+
+		/**
+		 * Creates a new local DB record for the given <code>abstractEntity</code>.
+		 *
+		 * @param abstractEntity
+		 * @return
+		 */
+		private SyncConfirm createAndStoreSyncConfirmRecord(AbstractSyncConfirmAwareEntity abstractEntity)
+		{
+			final SyncConfirm syncConfirmRecord = new SyncConfirm();
+			syncConfirmRecord.setEntryType(abstractEntity.getClass().getSimpleName());
+			syncConfirmRecord.setEntryUuid(abstractEntity.getUuid());
+			syncConfirmRecord.setEntryId(abstractEntity.getId());
+
+			syncConfirmRepo.save(syncConfirmRecord);
+
+			abstractEntity.setSyncConfirmId(syncConfirmRecord.getId());
+
+			return syncConfirmRecord;
+		}
+
+		@Override
+		public void afterCommit()
+		{
+			logger.debug("Synchronizing: {}", this);
+
+			//
+			// Sync daily product supplies
+			{
+				final List<ProductSupply> productSupplies = ImmutableList.copyOf(this.productSupplies);
+				this.productSupplies.clear();
+				if (!productSupplies.isEmpty())
+				{
+					reportProductSuppliesAsync(productSupplies);
+				}
+			}
+
+			//
+			// Sync weekly product supplies
+			{
+				final List<WeekSupply> weeklySupplies = ImmutableList.copyOf(this.weeklySupplies);
+				this.weeklySupplies.clear();
+				if (!weeklySupplies.isEmpty())
+				{
+					reportWeeklySupplyAsync(weeklySupplies);
+				}
+			}
+			
+			//
+			// Sync RfQ changes
+			{
+				final List<RfqHeader> rfqHeaders = ImmutableList.copyOf(this.rfqHeaders);
+				this.rfqHeaders.clear();
+				if(!rfqHeaders.isEmpty())
+				{
+					reportRfQChanges(rfqHeaders);
+				}
+			}
+		}
+	}
+
 }

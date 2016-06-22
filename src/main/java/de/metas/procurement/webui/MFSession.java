@@ -1,12 +1,22 @@
 package de.metas.procurement.webui;
 
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
+
 import com.google.gwt.thirdparty.guava.common.base.Preconditions;
+import com.vaadin.data.util.BeanItemContainer;
 
 import de.metas.procurement.webui.model.BPartner;
 import de.metas.procurement.webui.model.Contracts;
 import de.metas.procurement.webui.model.User;
 import de.metas.procurement.webui.service.IContractsService;
+import de.metas.procurement.webui.service.IRfQService;
+import de.metas.procurement.webui.service.ISendService;
+import de.metas.procurement.webui.service.impl.SendService;
 import de.metas.procurement.webui.ui.model.ProductQtyReportRepository;
+import de.metas.procurement.webui.ui.model.RfqHeader;
 
 /*
  * #%L
@@ -40,10 +50,20 @@ public final class MFSession
 	private final User user;
 	private final Contracts contracts;
 	private final ProductQtyReportRepository productQtyReportRepository;
+	private BeanItemContainer<RfqHeader> _activeRfqsContainer; // lazy
+	
+	@Autowired
+	@Lazy
+	private IRfQService rfqService;
+	
+	private ISendService sendService = new SendService();
+
 
 	private MFSession(final Builder builder)
 	{
 		super();
+		Application.autowire(this);
+		
 		this.user = builder.getUser();
 		
 		final BPartner bpartner = user.getBpartner();
@@ -67,7 +87,22 @@ public final class MFSession
 	{
 		return productQtyReportRepository;
 	}
-
+	
+	public BeanItemContainer<RfqHeader> getActiveRfqs()
+	{
+		if (_activeRfqsContainer == null)
+		{
+			final List<RfqHeader> activeRfqs = rfqService.getActiveRfqHeaders(user);
+			_activeRfqsContainer = new BeanItemContainer(RfqHeader.class, activeRfqs);
+		}
+		return _activeRfqsContainer;
+	}
+	
+	public ISendService getSendService()
+	{
+		return sendService;
+	}
+	
 	public static final class Builder
 	{
 		private User user;

@@ -1,19 +1,22 @@
 package de.metas.procurement.webui.ui.view;
 
+import java.math.BigDecimal;
+import java.util.Locale;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.vaadin.spring.i18n.I18N;
 
-import com.vaadin.addon.touchkit.ui.NavigationButton;
-import com.vaadin.addon.touchkit.ui.NavigationButton.NavigationButtonClickEvent;
-import com.vaadin.addon.touchkit.ui.NavigationButton.NavigationButtonClickListener;
-import com.vaadin.addon.touchkit.ui.VerticalComponentGroup;
+import com.vaadin.data.util.BeanItem;
+import com.vaadin.data.util.BeanItemContainer;
+import com.vaadin.ui.Component;
 import com.vaadin.ui.VerticalLayout;
 
 import de.metas.procurement.webui.MFProcurementUI;
-import de.metas.procurement.webui.MFSession;
-import de.metas.procurement.webui.model.Rfq;
-import de.metas.procurement.webui.model.User;
-import de.metas.procurement.webui.service.IRfQService;
+import de.metas.procurement.webui.ui.component.BeansVerticalComponentGroup;
+import de.metas.procurement.webui.ui.component.GenericProductButton;
+import de.metas.procurement.webui.ui.model.RfqHeader;
+import de.metas.procurement.webui.util.QuantityUtils;
+import de.metas.procurement.webui.util.StringToDateConverter;
 
 /*
  * #%L
@@ -41,65 +44,94 @@ import de.metas.procurement.webui.service.IRfQService;
 public class RfQsListView extends MFProcurementNavigationView
 {
 	@Autowired
-	private IRfQService rfqService;
-
-	@Autowired
 	private I18N i18n;
+	private BeansVerticalComponentGroup<RfqHeader> rfqsPanel;
 
-	private final User user;
+	private boolean _rfqHeadersLoaded = false;
 
 	public RfQsListView()
 	{
 		super();
-		// Application.autowire(this);
-
-		final MFSession mfSession = MFProcurementUI.getCurrentMFSession();
-		user = mfSession.getUser();
-
 		setCaption(i18n.get("RfQsListView.caption"));
+		createUI();
 	}
 
-	@Override
-	public void attach()
+	private void createUI()
 	{
-		super.attach();
-
 		final VerticalLayout content = new VerticalLayout();
 		setContent(content);
 
-		final VerticalComponentGroup rfqsPanel = new VerticalComponentGroup();
-		for (final Rfq rfq : rfqService.getActiveRfQs(user))
+		rfqsPanel = new BeansVerticalComponentGroup<RfqHeader>()
 		{
-			final NavigationButton rfqButton = createRfQButton(rfq);
-			rfqsPanel.addComponent(rfqButton);
-		}
+			@Override
+			protected Component createItemComponent(final BeanItem<RfqHeader> rfqHeaderItem)
+			{
+				final RfqButton button = new RfqButton();
+				button.setItem(rfqHeaderItem);
+				return button;
+			}
+		};
 		content.addComponent(rfqsPanel);
 	}
 
-	private NavigationButton createRfQButton(final Rfq rfq)
+	@Override
+	protected void onBecomingVisible()
 	{
-		final NavigationButton button = new NavigationButton();
-		button.setTargetView(this);
-		button.setCaption(rfq.getName());
+		super.onBecomingVisible();
 
-		// TODO: FRESH-402: Description, etc
-
-		button.addClickListener(new NavigationButtonClickListener()
+		//
+		// Load RfQ items
+		if (!_rfqHeadersLoaded)
 		{
-			@Override
-			public void buttonClick(final NavigationButtonClickEvent event)
-			{
-				onRfQSelected(rfq);
-			}
-		});
-
-		return button;
+			final BeanItemContainer<RfqHeader> rfqHeaderContainer = MFProcurementUI.getCurrentMFSession().getActiveRfqs();
+			rfqsPanel.setContainerDataSource(rfqHeaderContainer);
+			_rfqHeadersLoaded = true;
+		}
 	}
 
-	private void onRfQSelected(final Rfq rfq)
+	private static class RfqButton extends GenericProductButton<RfqHeader>
 	{
-		final RfQView rfqView = new RfQView(rfq);
-		getNavigationManager().navigateTo(rfqView);
+		private final RfQView rfqView = new RfQView();
+
+		public RfqButton()
+		{
+			super();
+			setTargetView(rfqView);
+		}
+
+		@Override
+		public RfqHeader getBean()
+		{
+			return super.getBean();
+		}
+
+		@Override
+		protected void onItemChanged(final BeanItem<RfqHeader> item)
+		{
+			rfqView.setRfqHeaderItem(item);
+		}
+
+		@Override
+		protected String extractCaption(final RfqHeader bean)
+		{
+			final Locale locale = getLocale();
+
+			final StringBuilder caption = new StringBuilder();
+			caption.append(bean.getProductName());
+			caption.append("\n");
+			caption.append(StringToDateConverter.instance.convertToPresentation(bean.getDateStart(), String.class, locale));
+			caption.append(" - ");
+			caption.append(StringToDateConverter.instance.convertToPresentation(bean.getDateEnd(), String.class, locale));
+			return caption.toString();
+		}
+
+		@Override
+		protected String extractDescription(final RfqHeader bean)
+		{
+			final BigDecimal qty = bean.getQtyPromised();
+			final String qtyStr = QuantityUtils.toString(qty);
+			return qtyStr;
+		}
 	}
 
 }

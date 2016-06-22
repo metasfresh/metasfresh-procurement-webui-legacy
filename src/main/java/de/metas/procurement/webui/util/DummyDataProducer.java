@@ -22,6 +22,7 @@ import de.metas.procurement.sync.protocol.SyncContract;
 import de.metas.procurement.sync.protocol.SyncContractLine;
 import de.metas.procurement.sync.protocol.SyncProduct;
 import de.metas.procurement.sync.protocol.SyncProductsRequest;
+import de.metas.procurement.sync.protocol.SyncRfQ;
 import de.metas.procurement.sync.protocol.SyncUser;
 import de.metas.procurement.webui.model.BPartner;
 import de.metas.procurement.webui.model.Contract;
@@ -162,6 +163,34 @@ public class DummyDataProducer
 				}
 
 				syncBPartner.getContracts().add(syncContract);
+			}
+			
+			//
+			// RfQ
+			final List<SyncProduct> syncProducts = getSyncProductsRequest().getProducts();
+			for (int rfqNo = 0; rfqNo < 4 && rfqNo < syncProducts.size(); rfqNo++)
+			{
+				final Date dateStart = DateUtils.addMonths(DateUtils.truncToMonth(new Date()), 2);
+				final Date dateEnd = DateUtils.addDays(dateStart, 14);
+				final Date dateClose = DateUtils.addDays(dateStart, -10);
+				
+				final SyncRfQ syncRfQ = new SyncRfQ();
+				syncRfQ.setUuid(randomUUID());
+				
+				syncRfQ.setDateStart(dateStart);
+				syncRfQ.setDateEnd(dateEnd);
+				syncRfQ.setName("RfQ "+(rfqNo + 1));
+				
+				syncRfQ.setDateClose(dateClose);
+				syncRfQ.setClosed(false);
+				syncRfQ.setWinner(false);
+
+				final SyncProduct syncProduct = syncProducts.get(rfqNo);
+				syncRfQ.setProduct_uuid(syncProduct.getUuid());
+
+				syncRfQ.setQtyRequested(BigDecimal.valueOf(100));
+				
+				syncBPartner.getRfqs().add(syncRfQ);
 			}
 
 			request.getBpartners().add(syncBPartner);

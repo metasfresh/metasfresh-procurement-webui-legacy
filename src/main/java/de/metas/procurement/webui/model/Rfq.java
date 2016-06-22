@@ -60,16 +60,17 @@ public class Rfq extends AbstractEntity
 	private boolean closed;
 	private boolean winner;
 
+	@ManyToOne
 	@NotNull
-	private String product_uuid;
+	private Product product;
 
 	@NotNull
-	private BigDecimal qtyRequested;
+	private BigDecimal qtyRequested = BigDecimal.ZERO;
 
 	@NotNull
-	private BigDecimal pricePromised;
+	private BigDecimal pricePromised = BigDecimal.ZERO;
 
-	@OneToMany(fetch = FetchType.EAGER, mappedBy = RfqQty.TABLE_NAME, cascade = CascadeType.REMOVE)
+	@OneToMany(fetch = FetchType.EAGER, cascade = CascadeType.REMOVE)
 	private final List<RfqQty> quantities = new ArrayList<>();
 
 
@@ -88,7 +89,7 @@ public class Rfq extends AbstractEntity
 				.add("closed", closed)
 				.add("winner", winner)
 				//
-				.add("product_uuid", product_uuid)
+				.add("product", product)
 				//
 				.add("qtyRequested", qtyRequested)
 				//
@@ -167,14 +168,14 @@ public class Rfq extends AbstractEntity
 		this.winner = winner;
 	}
 
-	public String getProduct_uuid()
+	public Product getProduct()
 	{
-		return product_uuid;
+		return product;
 	}
 
-	public void setProduct_uuid(final String product_uuid)
+	public void setProduct(final Product product)
 	{
-		this.product_uuid = product_uuid;
+		this.product = product;
 	}
 
 	public BigDecimal getQtyRequested()

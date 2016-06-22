@@ -1,19 +1,16 @@
 package de.metas.procurement.webui.sync;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import de.metas.procurement.sync.protocol.SyncRfQ;
-import de.metas.procurement.sync.protocol.SyncRfQQty;
 import de.metas.procurement.webui.model.BPartner;
+import de.metas.procurement.webui.model.Product;
 import de.metas.procurement.webui.model.Rfq;
-import de.metas.procurement.webui.model.RfqQty;
+import de.metas.procurement.webui.repository.ProductRepository;
 import de.metas.procurement.webui.repository.RfqQtyRepository;
 import de.metas.procurement.webui.repository.RfqRepository;
 
@@ -47,6 +44,8 @@ public class SyncRfqImportService extends AbstractSyncImportService
 	RfqRepository rfqRepo;
 	@Autowired
 	RfqQtyRepository rfqQtyRepo;
+	@Autowired
+	ProductRepository productRepo;
 
 	public void importRfQs(final BPartner bpartner, final List<SyncRfQ> syncRfQs)
 	{
@@ -58,51 +57,6 @@ public class SyncRfqImportService extends AbstractSyncImportService
 	}
 
 	private Rfq importRfQ(final BPartner bpartner, final SyncRfQ syncRfQ)
-	{
-		final Rfq rfq = importRfQNoCascade(bpartner, syncRfQ);
-		if (rfq == null)
-		{
-			return null;
-		}
-
-		//
-		// RfQ Quantities
-		final List<RfqQty> rfqQuantitiesToSave = new ArrayList<>();
-		final Map<String, RfqQty> rfqQuantities = mapByUuid(rfq.getQuantities());
-		for (final SyncRfQQty syncRfQQty : syncRfQ.getQuantities())
-		{
-			// If delete request, skip importing the RfQ quantity.
-			// As a result, the RfqQty will be deleted below.
-			if (syncRfQQty.isDeleted())
-			{
-				continue;
-			}
-
-			final RfqQty rfqQuantityExisting = rfqQuantities.remove(syncRfQ.getUuid());
-			final RfqQty rfqQuantity = importRfQQuantityNoSave(rfq, syncRfQQty, rfqQuantityExisting);
-			if (rfqQuantity == null)
-			{
-				continue;
-			}
-
-			rfqQuantitiesToSave.add(rfqQuantity);
-		}
-
-		//
-		// Delete remaining RfQ Quantities
-		for (final RfqQty rfqQuantity : rfqQuantities.values())
-		{
-			deleteRfQQuantity(rfqQuantity);
-		}
-
-		//
-		// Save created/updated lines
-		rfqQtyRepo.save(rfqQuantitiesToSave);
-
-		return rfq;
-	}
-
-	private Rfq importRfQNoCascade(final BPartner bpartner, final SyncRfQ syncRfQ)
 	{
 		final String uuid = syncRfQ.getUuid();
 		Rfq rfq = rfqRepo.findByUuid(uuid);
@@ -122,48 +76,16 @@ public class SyncRfqImportService extends AbstractSyncImportService
 		rfq.setDateClose(syncRfQ.getDateClose());
 		rfq.setClosed(syncRfQ.isClosed());
 		rfq.setWinner(syncRfQ.isWinner());
-
-		rfq.setProduct_uuid(syncRfQ.getProduct_uuid());
+		
+		final Product product = productRepo.findByUuid(syncRfQ.getProduct_uuid());
+		// FIXME: throw ex if null
+		rfq.setProduct(product);
 
 		rfq.setQtyRequested(syncRfQ.getQtyRequested());
-		rfq.setPricePromised(syncRfQ.getPricePromised());
 
 		rfqRepo.save(rfq);
 		logger.debug("Imported: {} -> {}", syncRfQ, rfq);
 
 		return rfq;
-	}
-
-	private RfqQty importRfQQuantityNoSave(final Rfq rfq, final SyncRfQQty syncRfQQty, final RfqQty rfqQuantityExisting)
-	{
-		RfqQty rfqQuantity = rfqQuantityExisting;
-
-		final String uuid = syncRfQQty.getUuid();
-		if (rfqQuantity != null && !Objects.equals(uuid, rfqQuantity.getUuid()))
-		{
-			rfqQuantity = null;
-		}
-
-		if (rfqQuantity == null)
-		{
-			rfqQuantity = new RfqQty();
-			rfqQuantity.setUuid(uuid);
-			rfqQuantity.setRfq(rfq);
-		}
-
-		rfqQuantity.setDeleted(false);
-		rfqQuantity.setDatePromised(syncRfQQty.getDatePromised());
-		rfqQuantity.setQtyPromised(syncRfQQty.getQtyPromised());
-
-		logger.debug("Imported: {} -> {}", syncRfQQty, rfqQuantity);
-
-		return rfqQuantity;
-	}
-
-	private void deleteRfQQuantity(final RfqQty rfqQuantity)
-	{
-		rfqQtyRepo.delete(rfqQuantity);
-		rfqQtyRepo.flush();
-		logger.debug("Deleted: {}", rfqQuantity);
 	}
 }
