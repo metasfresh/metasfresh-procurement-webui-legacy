@@ -53,7 +53,6 @@ public class SyncRfqImportService extends AbstractSyncImportService
 		{
 			importRfQ(bpartner, syncRfQ);
 		}
-
 	}
 
 	private Rfq importRfQ(final BPartner bpartner, final SyncRfQ syncRfQ)

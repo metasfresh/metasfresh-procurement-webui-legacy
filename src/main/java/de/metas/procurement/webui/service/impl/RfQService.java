@@ -130,8 +130,6 @@ public class RfQService implements IRfQService
 		//
 		// Save it
 		save(rfqHeader);
-		
-		syncService.syncAfterCommit().add(rfqHeader);
 	}
 
 	private void save(final RfqHeader rfqHeader)
@@ -142,6 +140,8 @@ public class RfQService implements IRfQService
 		{
 			rfqRecord.setPricePromised(rfqHeader.getPrice());
 			rfqRepo.save(rfqRecord);
+			
+			syncService.syncAfterCommit().add(rfqRecord);
 		}
 
 		//
@@ -166,6 +166,8 @@ public class RfQService implements IRfQService
 
 			rfqQtyRecord.setQtyPromised(rfqQuantityReport.getQty());
 			rfqQuantityRepo.save(rfqQtyRecord);
+			
+			syncService.syncAfterCommit().add(rfqQtyRecord);
 		}
 	}
 }

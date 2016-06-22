@@ -41,14 +41,15 @@ import de.metas.procurement.sync.protocol.SyncRfQQtyChangeEvent;
 import de.metas.procurement.sync.protocol.SyncWeeklySupply;
 import de.metas.procurement.sync.protocol.SyncWeeklySupplyRequest;
 import de.metas.procurement.webui.model.AbstractSyncConfirmAwareEntity;
+import de.metas.procurement.webui.model.Product;
 import de.metas.procurement.webui.model.ProductSupply;
+import de.metas.procurement.webui.model.Rfq;
+import de.metas.procurement.webui.model.RfqQty;
 import de.metas.procurement.webui.model.SyncConfirm;
 import de.metas.procurement.webui.model.WeekSupply;
 import de.metas.procurement.webui.repository.ProductSupplyRepository;
 import de.metas.procurement.webui.repository.SyncConfirmRepository;
 import de.metas.procurement.webui.service.IProductSuppliesService;
-import de.metas.procurement.webui.ui.model.RfqHeader;
-import de.metas.procurement.webui.ui.model.RfqQuantityReport;
 import de.metas.procurement.webui.util.DateUtils;
 import de.metas.procurement.webui.util.EventBusLoggingSubscriberExceptionHandler;
 
@@ -401,10 +402,9 @@ public class ServerSyncService implements IServerSyncService
 
 	}
 
-	@Override
-	public void reportRfQChanges(final List<RfqHeader> rfqHeaders)
+	private void reportRfQChangesAsync(final List<Rfq> rfqs, final List<RfqQty> rfqQuantities)
 	{
-		final SyncRfQChangeRequest request = createSyncRfQChangeRequest(rfqHeaders);
+		final SyncRfQChangeRequest request = createSyncRfQChangeRequest(rfqs, rfqQuantities);
 		if (request == null || request.isEmpty())
 		{
 			logger.debug("No RfQ change requests to enqueue");
@@ -430,45 +430,44 @@ public class ServerSyncService implements IServerSyncService
 
 	}
 
-	private SyncRfQChangeRequest createSyncRfQChangeRequest(final List<RfqHeader> rfqHeaders)
+	private SyncRfQChangeRequest createSyncRfQChangeRequest(final List<Rfq> rfqs, final List<RfqQty> rfqQuantities)
 	{
 		final SyncRfQChangeRequest changeRequest = new SyncRfQChangeRequest();
-		if (rfqHeaders == null || rfqHeaders.isEmpty())
+		
+		for (final Rfq rfq : rfqs)
 		{
-			return changeRequest;
-		}
-
-		for (final RfqHeader rfqHeader : rfqHeaders)
-		{
-			SyncRfQPriceChangeEvent priceChangeEvent = createSyncRfQPriceChangeEvent(rfqHeader);
+			final SyncRfQPriceChangeEvent priceChangeEvent = createSyncRfQPriceChangeEvent(rfq);
 			changeRequest.getPriceChangeEvents().add(priceChangeEvent);
-
-			for (final RfqQuantityReport rfqQuantityReport : rfqHeader.getQuantities())
-			{
-				final SyncRfQQtyChangeEvent qtyChangeEvent = createSyncRfQQtyChangeEvent(rfqQuantityReport);
-				changeRequest.getQtyChangeEvents().add(qtyChangeEvent);
-			}
+		}
+		
+		for (final RfqQty rfqQty : rfqQuantities)
+		{
+			final SyncRfQQtyChangeEvent qtyChangeEvent = createSyncRfQQtyChangeEvent(rfqQty);
+			changeRequest.getQtyChangeEvents().add(qtyChangeEvent);
 		}
 
 		return changeRequest;
 	}
 
-	private SyncRfQPriceChangeEvent createSyncRfQPriceChangeEvent(final RfqHeader rfqRecord)
+	private SyncRfQPriceChangeEvent createSyncRfQPriceChangeEvent(final Rfq rfqRecord)
 	{
 		final SyncRfQPriceChangeEvent priceChangeEvent = new SyncRfQPriceChangeEvent();
-		priceChangeEvent.setRfq_uuid(rfqRecord.getRfq_uuid());
-		priceChangeEvent.setProduct_uuid(rfqRecord.getProduct_uuid());
-		priceChangeEvent.setPrice(rfqRecord.getPrice());
+		priceChangeEvent.setRfq_uuid(rfqRecord.getUuid());
+		priceChangeEvent.setProduct_uuid(rfqRecord.getProduct().getUuid());
+		priceChangeEvent.setPrice(rfqRecord.getPricePromised());
 		return priceChangeEvent;
 	}
 
-	private SyncRfQQtyChangeEvent createSyncRfQQtyChangeEvent(RfqQuantityReport rfqQtyReport)
+	private SyncRfQQtyChangeEvent createSyncRfQQtyChangeEvent(final RfqQty rfqQtyReport)
 	{
-		SyncRfQQtyChangeEvent qtyChangeEvent = new SyncRfQQtyChangeEvent();
-		qtyChangeEvent.setRfq_uuid(rfqQtyReport.getRfq_uuid());
-		qtyChangeEvent.setDay(rfqQtyReport.getDay());
-		qtyChangeEvent.setProduct_uuid(rfqQtyReport.getProduct_uuid());
-		qtyChangeEvent.setQty(rfqQtyReport.getQty());
+		final Rfq rfq = rfqQtyReport.getRfq();
+		final Product product = rfq.getProduct();
+		
+		final SyncRfQQtyChangeEvent qtyChangeEvent = new SyncRfQQtyChangeEvent();
+		qtyChangeEvent.setRfq_uuid(rfq.getUuid());
+		qtyChangeEvent.setDay(rfqQtyReport.getDatePromised());
+		qtyChangeEvent.setProduct_uuid(product.getUuid());
+		qtyChangeEvent.setQty(rfqQtyReport.getQtyPromised());
 		return qtyChangeEvent;
 	}
 
@@ -511,7 +510,8 @@ public class ServerSyncService implements IServerSyncService
 	{
 		private final List<ProductSupply> productSupplies = new ArrayList<>();
 		private final List<WeekSupply> weeklySupplies = new ArrayList<>();
-		private final List<RfqHeader> rfqHeaders = new ArrayList<>();
+		private final List<Rfq> rfqs = new ArrayList<>();
+		private final List<RfqQty> rfqQuantities = new ArrayList<>();
 
 		@Override
 		public ISyncAfterCommitCollector add(final ProductSupply productSupply)
@@ -532,9 +532,18 @@ public class ServerSyncService implements IServerSyncService
 		}
 
 		@Override
-		public ISyncAfterCommitCollector add(final RfqHeader rfqHeader)
+		public ISyncAfterCommitCollector add(final Rfq rfq)
 		{
-			rfqHeaders.add(rfqHeader);
+			createAndStoreSyncConfirmRecord(rfq);
+			rfqs.add(rfq);
+			return this;
+		}
+		
+		@Override
+		public ISyncAfterCommitCollector add(final RfqQty rfqQty)
+		{
+			createAndStoreSyncConfirmRecord(rfqQty);
+			rfqQuantities.add(rfqQty);
 			return this;
 		}
 
@@ -588,12 +597,11 @@ public class ServerSyncService implements IServerSyncService
 			//
 			// Sync RfQ changes
 			{
-				final List<RfqHeader> rfqHeaders = ImmutableList.copyOf(this.rfqHeaders);
-				this.rfqHeaders.clear();
-				if(!rfqHeaders.isEmpty())
-				{
-					reportRfQChanges(rfqHeaders);
-				}
+				final List<Rfq> rfqs = ImmutableList.copyOf(this.rfqs);
+				final List<RfqQty> rfqQuantities = ImmutableList.copyOf(this.rfqQuantities);
+				this.rfqs.clear();
+				this.rfqQuantities.clear();
+				reportRfQChangesAsync(rfqs, rfqQuantities);
 			}
 		}
 	}

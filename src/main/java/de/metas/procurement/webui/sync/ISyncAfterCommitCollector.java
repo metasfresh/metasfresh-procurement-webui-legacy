@@ -1,8 +1,9 @@
 package de.metas.procurement.webui.sync;
 
 import de.metas.procurement.webui.model.ProductSupply;
+import de.metas.procurement.webui.model.Rfq;
+import de.metas.procurement.webui.model.RfqQty;
 import de.metas.procurement.webui.model.WeekSupply;
-import de.metas.procurement.webui.ui.model.RfqHeader;
 
 /*
  * #%L
@@ -33,6 +34,8 @@ public interface ISyncAfterCommitCollector
 
 	ISyncAfterCommitCollector add(WeekSupply weeklySupply);
 
-	ISyncAfterCommitCollector add(RfqHeader rfqHeader);
+	ISyncAfterCommitCollector add(Rfq rfq);
+
+	ISyncAfterCommitCollector add(RfqQty rfqQty);
 
 }

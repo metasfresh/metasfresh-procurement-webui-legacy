@@ -40,7 +40,7 @@ import com.google.gwt.thirdparty.guava.common.base.Objects.ToStringHelper;
 @Entity
 @Table(name = Rfq.TABLE_NAME)
 @SuppressWarnings("serial")
-public class Rfq extends AbstractEntity
+public class Rfq extends AbstractSyncConfirmAwareEntity
 {
 	/* package */static final String TABLE_NAME = "rfq";
 

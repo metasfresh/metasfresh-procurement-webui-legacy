@@ -39,7 +39,7 @@ import com.google.gwt.thirdparty.guava.common.base.Objects.ToStringHelper;
 , uniqueConstraints = @UniqueConstraint(name = "rfq_qty_uq", columnNames = { "rfq_id", "datePromised" })   //
 )
 @SuppressWarnings("serial")
-public class RfqQty extends AbstractEntity
+public class RfqQty extends AbstractSyncConfirmAwareEntity
 {
 	/* package */static final String TABLE_NAME = "rfq_qty";
 
