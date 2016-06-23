@@ -3,6 +3,7 @@ package de.metas.procurement.webui.sync;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -10,6 +11,7 @@ import de.metas.procurement.sync.protocol.SyncRfQ;
 import de.metas.procurement.webui.model.BPartner;
 import de.metas.procurement.webui.model.Product;
 import de.metas.procurement.webui.model.Rfq;
+import de.metas.procurement.webui.repository.BPartnerRepository;
 import de.metas.procurement.webui.repository.ProductRepository;
 import de.metas.procurement.webui.repository.RfqQtyRepository;
 import de.metas.procurement.webui.repository.RfqRepository;
@@ -46,6 +48,9 @@ public class SyncRfqImportService extends AbstractSyncImportService
 	RfqQtyRepository rfqQtyRepo;
 	@Autowired
 	ProductRepository productRepo;
+	@Autowired
+	@Lazy
+	BPartnerRepository bpartnerRepo;
 
 	public void importRfQs(final BPartner bpartner, final List<SyncRfQ> syncRfQs)
 	{
@@ -55,7 +60,13 @@ public class SyncRfqImportService extends AbstractSyncImportService
 		}
 	}
 
-	private Rfq importRfQ(final BPartner bpartner, final SyncRfQ syncRfQ)
+	public Rfq importRfQ(final SyncRfQ syncRfQ)
+	{
+		final BPartner bpartner = null;
+		return importRfQ(bpartner, syncRfQ);
+	}
+
+	public Rfq importRfQ(BPartner bpartner, final SyncRfQ syncRfQ)
 	{
 		final String uuid = syncRfQ.getUuid();
 		Rfq rfq = rfqRepo.findByUuid(uuid);
@@ -63,6 +74,11 @@ public class SyncRfqImportService extends AbstractSyncImportService
 		{
 			rfq = new Rfq();
 			rfq.setUuid(uuid);
+			
+			if(bpartner == null)
+			{
+				bpartner = bpartnerRepo.findByUuid(syncRfQ.getBpartner_uuid());
+			}
 			rfq.setBpartner(bpartner);
 		}
 
@@ -70,7 +86,6 @@ public class SyncRfqImportService extends AbstractSyncImportService
 
 		rfq.setDateStart(syncRfQ.getDateStart());
 		rfq.setDateEnd(syncRfQ.getDateEnd());
-		rfq.setName(syncRfQ.getName());
 
 		rfq.setDateClose(syncRfQ.getDateClose());
 		rfq.setClosed(syncRfQ.isClosed());

@@ -48,8 +48,6 @@ public class Rfq extends AbstractSyncConfirmAwareEntity
 	private Date dateStart;
 	@NotNull
 	private Date dateEnd;
-	@NotNull
-	private String name;
 
 	@ManyToOne(fetch = FetchType.EAGER)
 	@NotNull
@@ -81,7 +79,6 @@ public class Rfq extends AbstractSyncConfirmAwareEntity
 				.omitNullValues()
 				.add("dateStart", dateStart)
 				.add("dateEnd", dateEnd)
-				.add("name", name)
 				//
 				.add("bpartner", bpartner)
 				//
@@ -116,16 +113,6 @@ public class Rfq extends AbstractSyncConfirmAwareEntity
 	public void setDateEnd(final Date dateEnd)
 	{
 		this.dateEnd = dateEnd;
-	}
-
-	public String getName()
-	{
-		return name;
-	}
-
-	public void setName(final String name)
-	{
-		this.name = name;
 	}
 
 	public BPartner getBpartner()

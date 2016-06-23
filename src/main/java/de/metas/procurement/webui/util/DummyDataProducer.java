@@ -179,7 +179,8 @@ public class DummyDataProducer
 				
 				syncRfQ.setDateStart(dateStart);
 				syncRfQ.setDateEnd(dateEnd);
-				syncRfQ.setName("RfQ "+(rfqNo + 1));
+				
+				syncRfQ.setBpartner_uuid(syncBPartner.getUuid());
 				
 				syncRfQ.setDateClose(dateClose);
 				syncRfQ.setClosed(false);

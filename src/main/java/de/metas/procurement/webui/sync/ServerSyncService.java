@@ -48,6 +48,7 @@ import de.metas.procurement.webui.model.RfqQty;
 import de.metas.procurement.webui.model.SyncConfirm;
 import de.metas.procurement.webui.model.WeekSupply;
 import de.metas.procurement.webui.repository.ProductSupplyRepository;
+import de.metas.procurement.webui.repository.RfqRepository;
 import de.metas.procurement.webui.repository.SyncConfirmRepository;
 import de.metas.procurement.webui.service.IProductSuppliesService;
 import de.metas.procurement.webui.util.DateUtils;
@@ -101,7 +102,11 @@ public class ServerSyncService implements IServerSyncService
 	@Autowired
 	@Lazy
 	private IProductSuppliesService productSuppliesService;
-	
+
+	@Autowired
+	@Lazy
+	private RfqRepository rfqRepo;
+
 	@Autowired
 	@Lazy
 	private SyncConfirmRepository syncConfirmRepo;
@@ -433,13 +438,13 @@ public class ServerSyncService implements IServerSyncService
 	private SyncRfQChangeRequest createSyncRfQChangeRequest(final List<Rfq> rfqs, final List<RfqQty> rfqQuantities)
 	{
 		final SyncRfQChangeRequest changeRequest = new SyncRfQChangeRequest();
-		
+
 		for (final Rfq rfq : rfqs)
 		{
 			final SyncRfQPriceChangeEvent priceChangeEvent = createSyncRfQPriceChangeEvent(rfq);
 			changeRequest.getPriceChangeEvents().add(priceChangeEvent);
 		}
-		
+
 		for (final RfqQty rfqQty : rfqQuantities)
 		{
 			final SyncRfQQtyChangeEvent qtyChangeEvent = createSyncRfQQtyChangeEvent(rfqQty);
@@ -451,10 +456,14 @@ public class ServerSyncService implements IServerSyncService
 
 	private SyncRfQPriceChangeEvent createSyncRfQPriceChangeEvent(final Rfq rfqRecord)
 	{
+		final String rfq_uuid = rfqRecord.getUuid();
+		
 		final SyncRfQPriceChangeEvent priceChangeEvent = new SyncRfQPriceChangeEvent();
-		priceChangeEvent.setRfq_uuid(rfqRecord.getUuid());
+		priceChangeEvent.setUuid(rfq_uuid);
+		priceChangeEvent.setRfq_uuid(rfq_uuid);
 		priceChangeEvent.setProduct_uuid(rfqRecord.getProduct().getUuid());
 		priceChangeEvent.setPrice(rfqRecord.getPricePromised());
+		priceChangeEvent.setSyncConfirmationId(rfqRecord.getSyncConfirmId());
 		return priceChangeEvent;
 	}
 
@@ -462,15 +471,32 @@ public class ServerSyncService implements IServerSyncService
 	{
 		final Rfq rfq = rfqQtyReport.getRfq();
 		final Product product = rfq.getProduct();
-		
+
 		final SyncRfQQtyChangeEvent qtyChangeEvent = new SyncRfQQtyChangeEvent();
+		qtyChangeEvent.setUuid(rfqQtyReport.getUuid());
 		qtyChangeEvent.setRfq_uuid(rfq.getUuid());
 		qtyChangeEvent.setDay(rfqQtyReport.getDatePromised());
 		qtyChangeEvent.setProduct_uuid(product.getUuid());
 		qtyChangeEvent.setQty(rfqQtyReport.getQtyPromised());
+		qtyChangeEvent.setSyncConfirmationId(rfqQtyReport.getSyncConfirmId());
 		return qtyChangeEvent;
 	}
 
+	@ManagedOperation(description = "Pushes a particular RfQ, identified by ID, from webui server to metasfresh server")
+	public void pushRfqById(final long rfq_id)
+	{
+		final Rfq rfq = rfqRepo.findOne(rfq_id);
+		if (rfq == null)
+		{
+			throw new RuntimeException("No RfQ found for ID=" + rfq_id);
+		}
+
+		final SyncRfQChangeRequest request = createSyncRfQChangeRequest(ImmutableList.of(rfq), rfq.getQuantities());
+		logger.debug("Pushing request: {}", request);
+		process(request);
+		logger.debug("Pushing request done");
+	}
+	
 	@Override
 	public ISyncAfterCommitCollector syncAfterCommit()
 	{
@@ -538,7 +564,7 @@ public class ServerSyncService implements IServerSyncService
 			rfqs.add(rfq);
 			return this;
 		}
-		
+
 		@Override
 		public ISyncAfterCommitCollector add(final RfqQty rfqQty)
 		{
@@ -593,7 +619,7 @@ public class ServerSyncService implements IServerSyncService
 					reportWeeklySupplyAsync(weeklySupplies);
 				}
 			}
-			
+
 			//
 			// Sync RfQ changes
 			{
