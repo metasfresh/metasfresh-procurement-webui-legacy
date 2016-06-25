@@ -1,5 +1,7 @@
 package de.metas.procurement.webui.sync;
 
+import java.math.BigDecimal;
+import java.util.Date;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -7,12 +9,20 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.google.gwt.thirdparty.guava.common.base.Objects;
+
+import de.metas.procurement.sync.SyncRfQCloseEvent;
+import de.metas.procurement.sync.protocol.SyncProductSupply;
 import de.metas.procurement.sync.protocol.SyncRfQ;
 import de.metas.procurement.webui.model.BPartner;
+import de.metas.procurement.webui.model.ContractLine;
 import de.metas.procurement.webui.model.Product;
+import de.metas.procurement.webui.model.ProductSupply;
 import de.metas.procurement.webui.model.Rfq;
 import de.metas.procurement.webui.repository.BPartnerRepository;
+import de.metas.procurement.webui.repository.ContractLineRepository;
 import de.metas.procurement.webui.repository.ProductRepository;
+import de.metas.procurement.webui.repository.ProductSupplyRepository;
 import de.metas.procurement.webui.repository.RfqQtyRepository;
 import de.metas.procurement.webui.repository.RfqRepository;
 
@@ -29,11 +39,11 @@ import de.metas.procurement.webui.repository.RfqRepository;
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public
- * License along with this program.  If not, see
+ * License along with this program. If not, see
  * <http://www.gnu.org/licenses/gpl-2.0.html>.
  * #L%
  */
@@ -51,6 +61,12 @@ public class SyncRfqImportService extends AbstractSyncImportService
 	@Autowired
 	@Lazy
 	BPartnerRepository bpartnerRepo;
+	@Autowired
+	@Lazy
+	ContractLineRepository contractLineRepo;
+	@Autowired
+	@Lazy
+	ProductSupplyRepository productSupplyRepo;
 
 	public void importRfQs(final BPartner bpartner, final List<SyncRfQ> syncRfQs)
 	{
@@ -68,14 +84,14 @@ public class SyncRfqImportService extends AbstractSyncImportService
 
 	public Rfq importRfQ(BPartner bpartner, final SyncRfQ syncRfQ)
 	{
-		final String uuid = syncRfQ.getUuid();
-		Rfq rfq = rfqRepo.findByUuid(uuid);
+		final String rfq_uuid = syncRfQ.getUuid();
+		Rfq rfq = rfqRepo.findByUuid(rfq_uuid);
 		if (rfq == null)
 		{
 			rfq = new Rfq();
-			rfq.setUuid(uuid);
-			
-			if(bpartner == null)
+			rfq.setUuid(rfq_uuid);
+
+			if (bpartner == null)
 			{
 				bpartner = bpartnerRepo.findByUuid(syncRfQ.getBpartner_uuid());
 			}
@@ -90,7 +106,7 @@ public class SyncRfqImportService extends AbstractSyncImportService
 		rfq.setDateClose(syncRfQ.getDateClose());
 		rfq.setClosed(syncRfQ.isClosed());
 		rfq.setWinner(syncRfQ.isWinner());
-		
+
 		final Product product = productRepo.findByUuid(syncRfQ.getProduct_uuid());
 		// FIXME: throw ex if null
 		rfq.setProduct(product);
@@ -101,5 +117,97 @@ public class SyncRfqImportService extends AbstractSyncImportService
 		logger.debug("Imported: {} -> {}", syncRfQ, rfq);
 
 		return rfq;
+	}
+
+	public void importRfQCloseEvent(final SyncRfQCloseEvent syncRfQCloseEvent)
+	{
+		final String rfq_uuid = syncRfQCloseEvent.getRfq_uuid();
+		final Rfq rfq = rfqRepo.findByUuid(rfq_uuid);
+		if (rfq == null)
+		{
+			logger.warn("No RfQ found for {}. Skip importing the event.", syncRfQCloseEvent);
+			return;
+		}
+
+		if (rfq.isClosed())
+		{
+			logger.warn("RfQ {} is already closed when we got {}. Skip importing the event.", rfq, syncRfQCloseEvent);
+			return;
+		}
+
+		//
+		// Update the RfQ
+		rfq.setClosed(true);
+		rfq.setWinner(syncRfQCloseEvent.isWinner());
+		rfqRepo.save(rfq);
+		// TODO: FRESH-402: shall we notify the UI?
+
+		if (syncRfQCloseEvent.isWinner())
+		{
+			final List<SyncProductSupply> plannedSupplies = syncRfQCloseEvent.getPlannedSupplies();
+			if (plannedSupplies != null && !plannedSupplies.isEmpty())
+			{
+				final BPartner bpartner = rfq.getBpartner();
+				
+				for (final SyncProductSupply syncProductSupply : plannedSupplies)
+				{
+					importPlannedProductSupply(syncProductSupply, bpartner);
+				}
+			}
+		}
+	}
+
+	private void importPlannedProductSupply(final SyncProductSupply syncProductSupply, final BPartner bpartner)
+	{
+		final String product_uuid = syncProductSupply.getProduct_uuid();
+		final Product product = productRepo.findByUuid(product_uuid);
+		//
+		final String contractLine_uuid = syncProductSupply.getContractLine_uuid();
+		final ContractLine contractLine = contractLineRepo.findByUuid(contractLine_uuid);
+		//
+		final Date day = syncProductSupply.getDay();
+		final BigDecimal qty = Objects.firstNonNull(syncProductSupply.getQty(), BigDecimal.ZERO);
+		
+		ProductSupply productSupply = productSupplyRepo.findByProductAndBpartnerAndDay(product, bpartner, day);
+		final boolean isNew;
+		if (productSupply == null)
+		{
+			isNew = true;
+			productSupply = ProductSupply.build(bpartner, product, contractLine, day);
+		}
+		else
+		{
+			isNew = false;
+		}
+		
+		//
+		// Contract line
+		if(!isNew)
+		{
+			final ContractLine contractLineOld = productSupply.getContractLine();
+			if (!Objects.equal(contractLine, contractLineOld))
+			{
+				logger.warn("Changing contract line {}->{} for {} because of planning supply: {}", contractLineOld, contractLine, productSupply, syncProductSupply);
+			}
+			productSupply.setContractLine(contractLine);
+		}
+		
+		//
+		// Quantity
+		if(!isNew)
+		{
+			final BigDecimal qtyOld = productSupply.getQty();
+			if (qty.compareTo(qtyOld) != 0)
+			{
+				logger.warn("Changing quantity {}->{} for {} because of planning supply: {}", qtyOld, qty, productSupply, syncProductSupply);
+			}
+		}
+		productSupply.setQty(qty);
+
+		//
+		// Save the product supply
+		productSupplyRepo.save(productSupply);
+		
+		// TODO: FRESH-402: shall we notify the UI?
 	}
 }

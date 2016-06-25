@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 import de.metas.procurement.sync.IAgentSync;
+import de.metas.procurement.sync.SyncRfQCloseEvent;
 import de.metas.procurement.sync.protocol.SyncBPartner;
 import de.metas.procurement.sync.protocol.SyncBPartnersRequest;
 import de.metas.procurement.sync.protocol.SyncConfirmation;
@@ -164,6 +165,28 @@ public class AgentSync implements IAgentSync
 			catch (Exception e)
 			{
 				logger.error("Failed importing RfQ: {}", syncRfq, e);
+			}
+		}
+	}
+
+	@Override
+	public void closeRfQs(final List<SyncRfQCloseEvent> syncRfQCloseEvents)
+	{
+		logger.debug("Got: {}", syncRfQCloseEvents);
+		if (syncRfQCloseEvents == null || syncRfQCloseEvents.isEmpty())
+		{
+			return;
+		}
+
+		for (final SyncRfQCloseEvent syncRfQCloseEvent : syncRfQCloseEvents)
+		{
+			try
+			{
+				rfqImportService.importRfQCloseEvent(syncRfQCloseEvent);
+			}
+			catch (Exception e)
+			{
+				logger.error("Failed importing: {}", syncRfQCloseEvent, e);
 			}
 		}
 	}
