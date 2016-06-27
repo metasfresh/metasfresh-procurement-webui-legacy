@@ -105,6 +105,8 @@ public class RfQService implements IRfQService
 		Preconditions.checkNotNull(rfq, "rfq is null");
 		final Map<Date, RfqQty> day2qtyExisting = getRfQQuantitiesIndexedByDatePromised(rfq);
 
+		final String qtyCUInfo = rfq.getQtyCUInfo();
+
 		final List<RfqQuantityReport> rfqQuantityReports = new ArrayList<>();
 		final Date dateStart = DateUtils.truncToDay(rfq.getDateStart());
 		final Date dateEnd = DateUtils.truncToDay(rfq.getDateEnd());
@@ -114,11 +116,11 @@ public class RfQService implements IRfQService
 			final RfqQuantityReport rfqQuantityReport;
 			if (rfqQty == null)
 			{
-				rfqQuantityReport = RfqQuantityReport.of(rfq, day);
+				rfqQuantityReport = RfqQuantityReport.of(rfq, day, qtyCUInfo);
 			}
 			else
 			{
-				rfqQuantityReport = RfqQuantityReport.of(rfq, day, rfqQty.getQtyPromised());
+				rfqQuantityReport = RfqQuantityReport.of(rfq, day, rfqQty.getQtyPromised(), qtyCUInfo);
 			}
 
 			rfqQuantityReports.add(rfqQuantityReport);

@@ -32,15 +32,15 @@ import de.metas.procurement.webui.util.DateUtils;
 
 public final class RfqQuantityReport
 {
-	public static final RfqQuantityReport of(final Rfq rfqRecord, final Date day, final BigDecimal qty)
+	public static final RfqQuantityReport of(final Rfq rfqRecord, final Date day, final BigDecimal qty, final String qtyCUInfo)
 	{
-		return new RfqQuantityReport(rfqRecord, day, qty);
+		return new RfqQuantityReport(rfqRecord, day, qty, qtyCUInfo);
 	}
 
-	public static final RfqQuantityReport of(final Rfq rfqRecord, final Date day)
+	public static final RfqQuantityReport of(final Rfq rfqRecord, final Date day, final String qtyCUInfo)
 	{
 		final BigDecimal qty = BigDecimal.ZERO;
-		return new RfqQuantityReport(rfqRecord, day, qty);
+		return new RfqQuantityReport(rfqRecord, day, qty, qtyCUInfo);
 	}
 
 	public static final String PROPERTY_Qty = "qty";
@@ -50,15 +50,18 @@ public final class RfqQuantityReport
 	private final String product_uuid;
 	private final Date day;
 
+	private final String qtyCUInfo;
 	private BigDecimal qty;
 	private BigDecimal qtySent;
 
-	private RfqQuantityReport(final Rfq rfqRecord, final Date day, final BigDecimal qty)
+
+	private RfqQuantityReport(final Rfq rfqRecord, final Date day, final BigDecimal qty, final String qtyCUInfo)
 	{
 		super();
 		this.rfq_uuid = rfqRecord.getUuid();
 		this.product_uuid = rfqRecord.getProduct().getUuid();
 		this.day = DateUtils.truncToDay(day);
+		this.qtyCUInfo = qtyCUInfo;
 		this.qty = qty;
 		qtySent = qty;
 
@@ -129,6 +132,11 @@ public final class RfqQuantityReport
 		return (Date)day.clone();
 	}
 
+	public String getQtyCUInfo()
+	{
+		return qtyCUInfo;
+	}
+
 	public BigDecimal getQty()
 	{
 		return qty;
@@ -158,5 +166,4 @@ public final class RfqQuantityReport
 	{
 		setQtySent(getQty());
 	}
-
 }

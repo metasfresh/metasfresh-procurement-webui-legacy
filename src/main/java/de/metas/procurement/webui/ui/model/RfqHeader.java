@@ -88,17 +88,19 @@ public class RfqHeader implements ISendService.ISendAwareBean
 
 	public static final String PROPERTY_Price = "price";
 	private BigDecimal price;
-
 	private BigDecimal priceSent;
+	private final String currencyCode;
 
 	public static final String PROPERTY_QtyRequested = "qtyRequested";
 	private final BigDecimal qtyRequested;
 	public static final String PROPERTY_QtyPromised = "qtyPromised";
 	private BigDecimal qtyPromised = BigDecimal.ZERO;
+	private final String qtyCUInfo;
 
 	private boolean sent;
 
 	private final List<RfqQuantityReport> quantities;
+
 
 	private RfqHeader(final Rfq rfq, final List<RfqQuantityReport> quantities)
 	{
@@ -116,8 +118,11 @@ public class RfqHeader implements ISendService.ISendAwareBean
 		dateStart = rfq.getDateStart();
 		dateEnd = rfq.getDateEnd();
 		dateClose = rfq.getDateClose();
+		
 		qtyRequested = rfq.getQtyRequested();
+		qtyCUInfo = rfq.getQtyCUInfo();
 
+		currencyCode = rfq.getCurrencyCode();
 		setPrice(rfq.getPricePromised());
 		priceSent = price;
 		sent = true;
@@ -289,5 +294,15 @@ public class RfqHeader implements ISendService.ISendAwareBean
 		{
 			rfqQuantity.setSentFieldsFromActualFields();
 		}
+	}
+
+	public String getCurrencyCode()
+	{
+		return currencyCode;
+	}
+	
+	public String getQtyCUInfo()
+	{
+		return qtyCUInfo;
 	}
 }

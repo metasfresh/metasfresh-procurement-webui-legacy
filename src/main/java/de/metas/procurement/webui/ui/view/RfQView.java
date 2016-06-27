@@ -19,7 +19,6 @@ import de.metas.procurement.webui.ui.component.BeansVerticalComponentGroup;
 import de.metas.procurement.webui.ui.model.RfqHeader;
 import de.metas.procurement.webui.ui.model.RfqModel;
 import de.metas.procurement.webui.ui.model.RfqQuantityReport;
-import de.metas.procurement.webui.util.QuantityUtils;
 import de.metas.procurement.webui.util.StringToDateConverter;
 import de.metas.procurement.webui.util.StringToPriceConverter;
 import de.metas.procurement.webui.util.StringToQuantityConverter;
@@ -88,14 +87,14 @@ public class RfQView extends MFProcurementNavigationView
 			rfqHeaderPanel = new RfqHeaderPanel();
 			content.addComponent(rfqHeaderPanel);
 		}
-		
+
 		//
 		// Price
 		{
 			final VerticalComponentGroup panel = new VerticalComponentGroup();
 			panel.setCaption(i18n.getWithDefault("RfQView.Price", "Price"));
 			content.addComponent(panel);
-			
+
 			priceButton = new RfqPriceButton();
 			priceButton.setCaption(i18n.getWithDefault("RfQView.Price", "Price"));
 			panel.addComponent(priceButton);
@@ -172,6 +171,8 @@ public class RfQView extends MFProcurementNavigationView
 		private final Label qtyRequestedField;
 		private final Label qtyPromisedField;
 
+		private final StringToQuantityConverter qtyConverter = new StringToQuantityConverter();
+
 		public RfqHeaderPanel()
 		{
 			final StringToDateConverter dateConverter = StringToDateConverter.instance;
@@ -201,17 +202,19 @@ public class RfQView extends MFProcurementNavigationView
 
 			qtyRequestedField = new Label();
 			qtyRequestedField.setCaption(i18n.getWithDefault("RfQView.QtyRequested", "Qty requested"));
-			qtyRequestedField.setConverter(StringToQuantityConverter.instance);
+			qtyRequestedField.setConverter(qtyConverter);
 			addComponent(qtyRequestedField);
 
 			qtyPromisedField = new Label();
 			qtyPromisedField.setCaption(i18n.getWithDefault("RfQView.QtyPromised", "Qty promised"));
-			qtyPromisedField.setConverter(StringToQuantityConverter.instance);
+			qtyPromisedField.setConverter(qtyConverter);
 			addComponent(qtyPromisedField);
 		}
 
 		public void setItem(final BeanItem<RfqHeader> rfqHeaderItem)
 		{
+			qtyConverter.setUom(rfqHeaderItem.getBean().getQtyCUInfo());
+
 			productNameField.setPropertyDataSource(rfqHeaderItem.getItemProperty(RfqHeader.PROPERTY_ProductName));
 			productPackingInfoField.setPropertyDataSource(rfqHeaderItem.getItemProperty(RfqHeader.PROPERTY_ProductPackingInfo));
 			dateStartField.setPropertyDataSource(rfqHeaderItem.getItemProperty(RfqHeader.PROPERTY_DateStart));
@@ -243,18 +246,21 @@ public class RfQView extends MFProcurementNavigationView
 		{
 			final BigDecimal price = bean.getPrice();
 			final String priceStr = StringToPriceConverter.instance.convertToPresentation(price, String.class, UI.getCurrent().getLocale());
-			setDescription(priceStr);
+			final String currencyCode = bean.getCurrencyCode();
+			setDescription(priceStr + " " + currencyCode);
 		}
 	}
 
 	private static class RfqQuantityButton extends BeanItemNavigationButton<RfqQuantityReport>
 	{
 		private final NumberEditorView<RfqQuantityReport> editorView = new NumberEditorView<>(RfqQuantityReport.PROPERTY_Qty);
+		private final StringToQuantityConverter qtyConverter;
 
 		public RfqQuantityButton()
 		{
 			super();
 			setTargetView(editorView);
+			qtyConverter = new StringToQuantityConverter();
 		}
 
 		@Override
@@ -270,8 +276,9 @@ public class RfQView extends MFProcurementNavigationView
 			final String dayStr = StringToDateConverter.instance.convertToPresentation(day, String.class, getLocale());
 			setCaption(dayStr);
 
+			qtyConverter.setUom(rfqQuantityReport.getQtyCUInfo());
 			final BigDecimal qty = rfqQuantityReport.getQty();
-			final String qtyStr = QuantityUtils.toString(qty);
+			final String qtyStr = qtyConverter.convertToPresentation(qty, String.class, getLocale());
 			setDescription(qtyStr);
 		}
 	}

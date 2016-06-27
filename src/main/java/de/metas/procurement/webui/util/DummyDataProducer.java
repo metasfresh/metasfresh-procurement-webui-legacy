@@ -188,6 +188,8 @@ public class DummyDataProducer
 				syncRfQ.setProduct(syncProduct);
 
 				syncRfQ.setQtyRequested(BigDecimal.valueOf(100));
+				syncRfQ.setQtyCUInfo("Kg");
+				syncRfQ.setCurrencyCode("CHF");
 				
 				syncBPartner.getRfqs().add(syncRfQ);
 			}

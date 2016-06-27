@@ -128,7 +128,12 @@ public class SyncRfqImportService extends AbstractSyncImportService
 		//
 		// Quantity
 		rfq.setQtyRequested(syncRfQ.getQtyRequested());
-
+		rfq.setQtyCUInfo(syncRfQ.getQtyCUInfo());
+		
+		//
+		// Price & currency
+		rfq.setCurrencyCode(syncRfQ.getCurrencyCode());
+		
 		//
 		// Save & return
 		rfqRepo.save(rfq);

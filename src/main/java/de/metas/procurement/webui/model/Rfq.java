@@ -64,12 +64,18 @@ public class Rfq extends AbstractSyncConfirmAwareEntity
 
 	@NotNull
 	private BigDecimal qtyRequested = BigDecimal.ZERO;
+	@NotNull
+	private String qtyCUInfo;
 
 	@NotNull
 	private BigDecimal pricePromised = BigDecimal.ZERO;
+	@NotNull
+	private String currencyCode;
 
 	@OneToMany(fetch = FetchType.EAGER, cascade = CascadeType.REMOVE)
 	private final List<RfqQty> quantities = new ArrayList<>();
+
+
 
 
 	@Override
@@ -89,10 +95,15 @@ public class Rfq extends AbstractSyncConfirmAwareEntity
 				.add("product", product)
 				//
 				.add("qtyRequested", qtyRequested)
+				.add("CU Info", qtyCUInfo)
 				//
 				.add("quantities", quantities)
 				//
-				.add("pricePromised", pricePromised);
+				.add("pricePromised", pricePromised)
+				.add("currency", currencyCode)
+				//
+				;
+		
 	}
 
 	public Date getDateStart()
@@ -188,5 +199,25 @@ public class Rfq extends AbstractSyncConfirmAwareEntity
 	public List<RfqQty> getQuantities()
 	{
 		return quantities;
+	}
+
+	public String getCurrencyCode()
+	{
+		return currencyCode;
+	}
+
+	public void setCurrencyCode(final String currencyCode)
+	{
+		this.currencyCode = currencyCode;
+	}
+	
+	public String getQtyCUInfo()
+	{
+		return qtyCUInfo;
+	}
+
+	public void setQtyCUInfo(String qtyCUInfo)
+	{
+		this.qtyCUInfo = qtyCUInfo;
 	}
 }
