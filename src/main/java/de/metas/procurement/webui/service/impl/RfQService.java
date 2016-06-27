@@ -66,16 +66,16 @@ public class RfQService implements IRfQService
 		final List<RfqHeader> rfqHeaders = new ArrayList<>(rfqs.size());
 		for (final Rfq rfq : rfqs)
 		{
-			if(rfq.isClosed())
+			if (rfq.isClosed())
 			{
 				continue;
 			}
-			
+
 			final List<RfqQuantityReport> rfqQuantities = retrieveRfqQuantityReports(rfq);
 			final RfqHeader rfqHeader = RfqHeader.of(rfq, rfqQuantities);
 			rfqHeaders.add(rfqHeader);
 		}
-		
+
 		return RfqHeader.ORDERING_ByDateStart
 				.compound(RfqHeader.ORDERING_ByProductName)
 				.immutableSortedCopy(rfqHeaders);
@@ -87,7 +87,9 @@ public class RfQService implements IRfQService
 		final Map<Date, RfqQty> day2qtyExisting = getRfQQuantitiesIndexedByDatePromised(rfq);
 
 		final List<RfqQuantityReport> rfqQuantityReports = new ArrayList<>();
-		for (final Date day : DateRange.of(rfq.getDateStart(), rfq.getDateEnd()).daysIterable())
+		final Date dateStart = DateUtils.truncToDay(rfq.getDateStart());
+		final Date dateEnd = DateUtils.truncToDay(rfq.getDateEnd());
+		for (final Date day : DateRange.of(dateStart, dateEnd).daysIterable())
 		{
 			final RfqQty rfqQty = day2qtyExisting.get(day);
 			final RfqQuantityReport rfqQuantityReport;
@@ -140,7 +142,7 @@ public class RfQService implements IRfQService
 		{
 			rfqRecord.setPricePromised(rfqHeader.getPrice());
 			rfqRepo.save(rfqRecord);
-			
+
 			syncService.syncAfterCommit().add(rfqRecord);
 		}
 
@@ -166,7 +168,7 @@ public class RfQService implements IRfQService
 
 			rfqQtyRecord.setQtyPromised(rfqQuantityReport.getQty());
 			rfqQuantityRepo.save(rfqQtyRecord);
-			
+
 			syncService.syncAfterCommit().add(rfqQtyRecord);
 		}
 	}

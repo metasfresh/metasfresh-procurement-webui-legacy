@@ -183,11 +183,9 @@ public class DummyDataProducer
 				syncRfQ.setBpartner_uuid(syncBPartner.getUuid());
 				
 				syncRfQ.setDateClose(dateClose);
-				syncRfQ.setClosed(false);
-				syncRfQ.setWinner(false);
 
 				final SyncProduct syncProduct = syncProducts.get(rfqNo);
-				syncRfQ.setProduct_uuid(syncProduct.getUuid());
+				syncRfQ.setProduct(syncProduct);
 
 				syncRfQ.setQtyRequested(BigDecimal.valueOf(100));
 				

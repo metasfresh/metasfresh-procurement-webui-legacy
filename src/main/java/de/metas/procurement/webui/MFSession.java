@@ -6,8 +6,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 
 import com.google.gwt.thirdparty.guava.common.base.Preconditions;
-import com.vaadin.data.util.BeanItemContainer;
 
+import de.metas.procurement.webui.event.MFEventBus;
+import de.metas.procurement.webui.event.RfqChangedEvent;
+import de.metas.procurement.webui.event.UIApplicationEventListenerAdapter;
 import de.metas.procurement.webui.model.BPartner;
 import de.metas.procurement.webui.model.Contracts;
 import de.metas.procurement.webui.model.User;
@@ -17,6 +19,7 @@ import de.metas.procurement.webui.service.ISendService;
 import de.metas.procurement.webui.service.impl.SendService;
 import de.metas.procurement.webui.ui.model.ProductQtyReportRepository;
 import de.metas.procurement.webui.ui.model.RfqHeader;
+import de.metas.procurement.webui.ui.model.RfqHeaderContainer;
 
 /*
  * #%L
@@ -50,13 +53,16 @@ public final class MFSession
 	private final User user;
 	private final Contracts contracts;
 	private final ProductQtyReportRepository productQtyReportRepository;
-	private BeanItemContainer<RfqHeader> _activeRfqsContainer; // lazy
+	private RfqHeaderContainer _activeRfqsContainer; // lazy
 	
 	@Autowired
 	@Lazy
 	private IRfQService rfqService;
 	
 	private ISendService sendService = new SendService();
+	
+	@Autowired
+	private MFEventBus applicationEventBus;
 
 
 	private MFSession(final Builder builder)
@@ -70,6 +76,18 @@ public final class MFSession
 		this.contracts = builder.getContractsRepository().getContracts(bpartner);
 		
 		this.productQtyReportRepository = new ProductQtyReportRepository(user, contracts);
+		
+		applicationEventBus.register(new UIApplicationEventListenerAdapter(){
+			@Override
+			public void onRfqChanged(RfqChangedEvent event)
+			{
+				final RfqHeaderContainer activeRfQs = getActiveRfqsNoLoad();
+				if(activeRfQs != null)
+				{
+					activeRfQs.notifyRfqChanged(event);
+				}
+			}
+		});
 	}
 
 	/** @return current logged user; never returns null */
@@ -88,16 +106,21 @@ public final class MFSession
 		return productQtyReportRepository;
 	}
 	
-	public BeanItemContainer<RfqHeader> getActiveRfqs()
+	public RfqHeaderContainer getActiveRfqs()
 	{
 		if (_activeRfqsContainer == null)
 		{
 			final List<RfqHeader> activeRfqs = rfqService.getActiveRfqHeaders(user);
-			_activeRfqsContainer = new BeanItemContainer(RfqHeader.class, activeRfqs);
+			_activeRfqsContainer = new RfqHeaderContainer(activeRfqs);
 		}
 		return _activeRfqsContainer;
 	}
-	
+
+	private RfqHeaderContainer getActiveRfqsNoLoad()
+	{
+		return _activeRfqsContainer;
+	}
+
 	public ISendService getSendService()
 	{
 		return sendService;

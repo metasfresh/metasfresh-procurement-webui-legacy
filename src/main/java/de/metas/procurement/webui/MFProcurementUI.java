@@ -37,6 +37,7 @@ import com.vaadin.ui.Window.CloseEvent;
 import com.vaadin.ui.Window.CloseListener;
 import com.vaadin.ui.themes.ValoTheme;
 
+import de.metas.procurement.webui.event.MFEventBus;
 import de.metas.procurement.webui.event.UIEventBus;
 import de.metas.procurement.webui.event.UserLoggedInEvent;
 import de.metas.procurement.webui.event.UserLogoutRequestEvent;
@@ -83,6 +84,9 @@ public class MFProcurementUI extends UI
 	@Lazy
 	private LoggingConfiguration loggingConfiguration;
 
+	@Autowired(required = true)
+	private MFEventBus applicationEventBus;
+
 	public MFProcurementUI()
 	{
 		super();
@@ -98,7 +102,6 @@ public class MFProcurementUI extends UI
 		// final Logger logger = Logger.getLogger(ConnectorTracker.class.getName());
 		// logger.setLevel(Level.ALL);
 		// }
-
 	}
 
 	@Override
@@ -129,6 +132,14 @@ public class MFProcurementUI extends UI
 				})
 				.setDefaultView(MainView.class)
 				.setViewNoLoginRequired(PasswordResetView.NAME, PasswordResetView.class);
+	}
+
+	@Override
+	public void detach()
+	{
+		super.detach();
+		
+		applicationEventBus.unregisterAllExpired();
 	}
 
 	@Override
@@ -248,7 +259,7 @@ public class MFProcurementUI extends UI
 
 		getPage().setLocation("/");
 		close();
-		
+
 		logger.debug("User logged done");
 	}
 

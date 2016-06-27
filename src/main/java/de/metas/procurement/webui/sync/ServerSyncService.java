@@ -410,7 +410,7 @@ public class ServerSyncService implements IServerSyncService
 	private void reportRfQChangesAsync(final List<Rfq> rfqs, final List<RfqQty> rfqQuantities)
 	{
 		final SyncRfQChangeRequest request = createSyncRfQChangeRequest(rfqs, rfqQuantities);
-		if (request == null || request.isEmpty())
+		if(SyncRfQChangeRequest.isEmpty(request))
 		{
 			logger.debug("No RfQ change requests to enqueue");
 			return;

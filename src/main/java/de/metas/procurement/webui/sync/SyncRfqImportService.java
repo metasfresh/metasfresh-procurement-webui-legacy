@@ -12,8 +12,11 @@ import org.springframework.transaction.annotation.Transactional;
 import com.google.gwt.thirdparty.guava.common.base.Objects;
 
 import de.metas.procurement.sync.SyncRfQCloseEvent;
+import de.metas.procurement.sync.protocol.SyncProduct;
 import de.metas.procurement.sync.protocol.SyncProductSupply;
 import de.metas.procurement.sync.protocol.SyncRfQ;
+import de.metas.procurement.webui.event.MFEventBus;
+import de.metas.procurement.webui.event.RfqChangedEvent;
 import de.metas.procurement.webui.model.BPartner;
 import de.metas.procurement.webui.model.ContractLine;
 import de.metas.procurement.webui.model.Product;
@@ -23,8 +26,8 @@ import de.metas.procurement.webui.repository.BPartnerRepository;
 import de.metas.procurement.webui.repository.ContractLineRepository;
 import de.metas.procurement.webui.repository.ProductRepository;
 import de.metas.procurement.webui.repository.ProductSupplyRepository;
-import de.metas.procurement.webui.repository.RfqQtyRepository;
 import de.metas.procurement.webui.repository.RfqRepository;
+import de.metas.procurement.webui.util.DateUtils;
 
 /*
  * #%L
@@ -53,20 +56,25 @@ import de.metas.procurement.webui.repository.RfqRepository;
 public class SyncRfqImportService extends AbstractSyncImportService
 {
 	@Autowired
-	RfqRepository rfqRepo;
+	private RfqRepository rfqRepo;
 	@Autowired
-	RfqQtyRepository rfqQtyRepo;
-	@Autowired
-	ProductRepository productRepo;
+	private ProductRepository productRepo;
 	@Autowired
 	@Lazy
-	BPartnerRepository bpartnerRepo;
+	private SyncProductImportService productImportService;
 	@Autowired
 	@Lazy
-	ContractLineRepository contractLineRepo;
+	private BPartnerRepository bpartnerRepo;
 	@Autowired
 	@Lazy
-	ProductSupplyRepository productSupplyRepo;
+	private ContractLineRepository contractLineRepo;
+	@Autowired
+	@Lazy
+	private ProductSupplyRepository productSupplyRepo;
+	
+	@Autowired
+	@Lazy
+	private MFEventBus applicationEventBus;
 
 	public void importRfQs(final BPartner bpartner, final List<SyncRfQ> syncRfQs)
 	{
@@ -100,22 +108,33 @@ public class SyncRfqImportService extends AbstractSyncImportService
 
 		rfq.setDeleted(false);
 
-		rfq.setDateStart(syncRfQ.getDateStart());
-		rfq.setDateEnd(syncRfQ.getDateEnd());
+		//
+		// Dates
+		rfq.setDateStart(DateUtils.truncToDay(syncRfQ.getDateStart()));
+		rfq.setDateEnd(DateUtils.truncToDay(syncRfQ.getDateEnd()));
+		rfq.setDateClose(DateUtils.truncToDay(syncRfQ.getDateClose()));
 
-		rfq.setDateClose(syncRfQ.getDateClose());
-		rfq.setClosed(syncRfQ.isClosed());
-		rfq.setWinner(syncRfQ.isWinner());
-
-		final Product product = productRepo.findByUuid(syncRfQ.getProduct_uuid());
-		// FIXME: throw ex if null
+		//
+		// Product
+		final SyncProduct syncProduct = syncRfQ.getProduct();
+		final Product product = productImportService.importProduct(syncProduct);
+		if (product == null)
+		{
+			throw new RuntimeException("No product found for "+syncProduct);
+		}
 		rfq.setProduct(product);
 
+		//
+		// Quantity
 		rfq.setQtyRequested(syncRfQ.getQtyRequested());
 
+		//
+		// Save & return
 		rfqRepo.save(rfq);
 		logger.debug("Imported: {} -> {}", syncRfQ, rfq);
 
+		applicationEventBus.post(RfqChangedEvent.of(rfq.getId()));
+		
 		return rfq;
 	}
 
@@ -140,7 +159,6 @@ public class SyncRfqImportService extends AbstractSyncImportService
 		rfq.setClosed(true);
 		rfq.setWinner(syncRfQCloseEvent.isWinner());
 		rfqRepo.save(rfq);
-		// TODO: FRESH-402: shall we notify the UI?
 
 		if (syncRfQCloseEvent.isWinner())
 		{
@@ -155,6 +173,8 @@ public class SyncRfqImportService extends AbstractSyncImportService
 				}
 			}
 		}
+		
+		applicationEventBus.post(RfqChangedEvent.of(rfq.getId()));
 	}
 
 	private void importPlannedProductSupply(final SyncProductSupply syncProductSupply, final BPartner bpartner)
@@ -165,7 +185,7 @@ public class SyncRfqImportService extends AbstractSyncImportService
 		final String contractLine_uuid = syncProductSupply.getContractLine_uuid();
 		final ContractLine contractLine = contractLineRepo.findByUuid(contractLine_uuid);
 		//
-		final Date day = syncProductSupply.getDay();
+		final Date day = DateUtils.truncToDay(syncProductSupply.getDay());
 		final BigDecimal qty = Objects.firstNonNull(syncProductSupply.getQty(), BigDecimal.ZERO);
 		
 		ProductSupply productSupply = productSupplyRepo.findByProductAndBpartnerAndDay(product, bpartner, day);

@@ -6,6 +6,7 @@ import java.util.Date;
 import com.google.gwt.thirdparty.guava.common.base.Objects;
 
 import de.metas.procurement.webui.model.Rfq;
+import de.metas.procurement.webui.util.DateUtils;
 
 /*
  * #%L
@@ -57,7 +58,7 @@ public final class RfqQuantityReport
 		super();
 		this.rfq_uuid = rfqRecord.getUuid();
 		this.product_uuid = rfqRecord.getProduct().getUuid();
-		this.day = day;
+		this.day = DateUtils.truncToDay(day);
 		this.qty = qty;
 		qtySent = qty;
 
@@ -125,7 +126,7 @@ public final class RfqQuantityReport
 
 	public Date getDay()
 	{
-		return day;
+		return (Date)day.clone();
 	}
 
 	public BigDecimal getQty()
