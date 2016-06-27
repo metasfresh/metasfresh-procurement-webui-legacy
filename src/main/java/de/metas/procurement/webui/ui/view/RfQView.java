@@ -64,6 +64,7 @@ public class RfQView extends MFProcurementNavigationView
 	private RfqModel _model; // lazy
 
 	private RfqHeaderPanel rfqHeaderPanel;
+	private RfqPriceButton priceButton;
 	private BeansVerticalComponentGroup<RfqQuantityReport> rfqQuantityButtons;
 
 	public RfQView()
@@ -86,6 +87,18 @@ public class RfQView extends MFProcurementNavigationView
 		{
 			rfqHeaderPanel = new RfqHeaderPanel();
 			content.addComponent(rfqHeaderPanel);
+		}
+		
+		//
+		// Price
+		{
+			final VerticalComponentGroup panel = new VerticalComponentGroup();
+			panel.setCaption(i18n.getWithDefault("RfQView.Price", "Price"));
+			content.addComponent(panel);
+			
+			priceButton = new RfqPriceButton();
+			priceButton.setCaption(i18n.getWithDefault("RfQView.Price", "Price"));
+			panel.addComponent(priceButton);
 		}
 
 		//
@@ -118,6 +131,7 @@ public class RfQView extends MFProcurementNavigationView
 
 		final RfqModel model = getModel();
 		rfqHeaderPanel.setItem(model.getRfqHeaderItem());
+		priceButton.setItem(model.getRfqHeaderItem());
 		rfqQuantityButtons.setContainerDataSource(model.getRfqQuantitiesContainer());
 	}
 
@@ -155,7 +169,6 @@ public class RfQView extends MFProcurementNavigationView
 		private final Label dateStartField;
 		private final Label dateEndField;
 		private final Label dateCloseField;
-		private final RfqPriceButton priceButton;
 		private final Label qtyRequestedField;
 		private final Label qtyPromisedField;
 
@@ -186,10 +199,6 @@ public class RfQView extends MFProcurementNavigationView
 			dateCloseField.setConverter(dateConverter);
 			addComponent(dateCloseField);
 
-			priceButton = new RfqPriceButton();
-			priceButton.setCaption(i18n.getWithDefault("RfQView.Price", "Price"));
-			addComponent(priceButton);
-
 			qtyRequestedField = new Label();
 			qtyRequestedField.setCaption(i18n.getWithDefault("RfQView.QtyRequested", "Qty requested"));
 			qtyRequestedField.setConverter(StringToQuantityConverter.instance);
@@ -208,7 +217,6 @@ public class RfQView extends MFProcurementNavigationView
 			dateStartField.setPropertyDataSource(rfqHeaderItem.getItemProperty(RfqHeader.PROPERTY_DateStart));
 			dateEndField.setPropertyDataSource(rfqHeaderItem.getItemProperty(RfqHeader.PROPERTY_DateEnd));
 			dateCloseField.setPropertyDataSource(rfqHeaderItem.getItemProperty(RfqHeader.PROPERTY_DateClose));
-			priceButton.setItem(rfqHeaderItem);
 			qtyRequestedField.setPropertyDataSource(rfqHeaderItem.getItemProperty(RfqHeader.PROPERTY_QtyRequested));
 			qtyPromisedField.setPropertyDataSource(rfqHeaderItem.getItemProperty(RfqHeader.PROPERTY_QtyPromised));
 		}
