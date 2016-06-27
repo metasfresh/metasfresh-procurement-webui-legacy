@@ -1,14 +1,9 @@
 package de.metas.procurement.webui.service.impl;
 
-import java.util.List;
-
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import de.metas.procurement.webui.model.BPartner;
-import de.metas.procurement.webui.model.Contract;
 import de.metas.procurement.webui.model.Contracts;
-import de.metas.procurement.webui.repository.ContractRepository;
 import de.metas.procurement.webui.service.IContractsService;
 
 /*
@@ -36,13 +31,9 @@ import de.metas.procurement.webui.service.IContractsService;
 @Service
 public class ContractsService implements IContractsService
 {
-	@Autowired
-	private ContractRepository contractRepository;
-	
 	@Override
 	public Contracts getContracts(final BPartner bpartner)
 	{
-		final List<Contract> contractsList = contractRepository.findByBpartnerAndDeletedFalse(bpartner);
-		return new Contracts(bpartner, contractsList);
+		return new Contracts(bpartner);
 	}
 }

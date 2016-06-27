@@ -1,24 +1,14 @@
 package de.metas.procurement.webui;
 
-import java.util.List;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Lazy;
-
 import com.google.gwt.thirdparty.guava.common.base.Preconditions;
 
-import de.metas.procurement.webui.event.MFEventBus;
-import de.metas.procurement.webui.event.RfqChangedEvent;
-import de.metas.procurement.webui.event.UIApplicationEventListenerAdapter;
 import de.metas.procurement.webui.model.BPartner;
 import de.metas.procurement.webui.model.Contracts;
 import de.metas.procurement.webui.model.User;
 import de.metas.procurement.webui.service.IContractsService;
-import de.metas.procurement.webui.service.IRfQService;
 import de.metas.procurement.webui.service.ISendService;
 import de.metas.procurement.webui.service.impl.SendService;
 import de.metas.procurement.webui.ui.model.ProductQtyReportRepository;
-import de.metas.procurement.webui.ui.model.RfqHeader;
 import de.metas.procurement.webui.ui.model.RfqHeaderContainer;
 
 /*
@@ -31,14 +21,14 @@ import de.metas.procurement.webui.ui.model.RfqHeaderContainer;
  * it under the terms of the GNU General Public License as
  * published by the Free Software Foundation, either version 2 of the
  * License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public
- * License along with this program.  If not, see
+ * License along with this program. If not, see
  * <http://www.gnu.org/licenses/gpl-2.0.html>.
  * #L%
  */
@@ -51,73 +41,65 @@ public final class MFSession
 	}
 
 	private final User user;
+	private final String bpartner_uuid;
+
 	private final Contracts contracts;
 	private final ProductQtyReportRepository productQtyReportRepository;
 	private RfqHeaderContainer _activeRfqsContainer; // lazy
-	
-	@Autowired
-	@Lazy
-	private IRfQService rfqService;
-	
-	private ISendService sendService = new SendService();
-	
-	@Autowired
-	private MFEventBus applicationEventBus;
 
+	private final ISendService sendService = new SendService();
 
 	private MFSession(final Builder builder)
 	{
 		super();
 		Application.autowire(this);
-		
-		this.user = builder.getUser();
-		
+
+		user = builder.getUser();
+		bpartner_uuid = user.getBpartner().getUuid();
+
 		final BPartner bpartner = user.getBpartner();
-		this.contracts = builder.getContractsRepository().getContracts(bpartner);
-		
-		this.productQtyReportRepository = new ProductQtyReportRepository(user, contracts);
-		
-		applicationEventBus.register(new UIApplicationEventListenerAdapter(){
-			@Override
-			public void onRfqChanged(RfqChangedEvent event)
-			{
-				final RfqHeaderContainer activeRfQs = getActiveRfqsNoLoad();
-				if(activeRfQs != null)
-				{
-					activeRfQs.notifyRfqChanged(event);
-				}
-			}
-		});
+		contracts = builder.getContractsRepository().getContracts(bpartner);
+
+		productQtyReportRepository = new ProductQtyReportRepository(user, contracts);
 	}
 
-	/** @return current logged user; never returns null */
+	/**
+	 * @return current logged user; never returns null
+	 */
 	public User getUser()
 	{
 		return user;
+	}
+
+	public String getBpartner_uuid()
+	{
+		return bpartner_uuid;
 	}
 
 	public Contracts getContracts()
 	{
 		return contracts;
 	}
-	
+
 	public ProductQtyReportRepository getProductQtyReportRepository()
 	{
 		return productQtyReportRepository;
 	}
-	
+
 	public RfqHeaderContainer getActiveRfqs()
 	{
 		if (_activeRfqsContainer == null)
 		{
-			final List<RfqHeader> activeRfqs = rfqService.getActiveRfqHeaders(user);
-			_activeRfqsContainer = new RfqHeaderContainer(activeRfqs);
+			synchronized (this)
+			{
+				if (_activeRfqsContainer == null)
+				{
+					final RfqHeaderContainer activeRfqsContainer = new RfqHeaderContainer(user);
+					activeRfqsContainer.loadAll();
+					_activeRfqsContainer = activeRfqsContainer;
+				}
+			}
 		}
-		return _activeRfqsContainer;
-	}
-
-	private RfqHeaderContainer getActiveRfqsNoLoad()
-	{
 		return _activeRfqsContainer;
 	}
 
@@ -125,7 +107,7 @@ public final class MFSession
 	{
 		return sendService;
 	}
-	
+
 	public static final class Builder
 	{
 		private User user;
@@ -141,7 +123,7 @@ public final class MFSession
 			return new MFSession(this);
 		}
 
-		public Builder setUser(User user)
+		public Builder setUser(final User user)
 		{
 			this.user = user;
 			return this;
@@ -153,7 +135,7 @@ public final class MFSession
 			return user;
 		}
 
-		public Builder setContractsRepository(IContractsService contractsRepository)
+		public Builder setContractsRepository(final IContractsService contractsRepository)
 		{
 			this.contractsRepository = contractsRepository;
 			return this;

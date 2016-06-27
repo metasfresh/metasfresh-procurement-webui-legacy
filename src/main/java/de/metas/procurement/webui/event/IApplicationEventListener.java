@@ -28,6 +28,9 @@ public interface IApplicationEventListener
 {
 	public UI getUI();
 
+	public void onContractChanged(final ContractChangedEvent event);
+
 	public void onRfqChanged(final RfqChangedEvent event);
 
+	public void onProductSupplyChanged(final ProductSupplyChangedEvent event);
 }

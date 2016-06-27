@@ -2,6 +2,7 @@ package de.metas.procurement.webui.event;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 
 import org.slf4j.Logger;
@@ -23,6 +24,8 @@ import com.google.gwt.thirdparty.guava.common.eventbus.Subscribe;
 import com.google.gwt.thirdparty.guava.common.eventbus.SubscriberExceptionContext;
 import com.google.gwt.thirdparty.guava.common.eventbus.SubscriberExceptionHandler;
 import com.vaadin.ui.UI;
+
+import de.metas.procurement.webui.MFProcurementUI;
 
 /*
  * #%L
@@ -187,12 +190,25 @@ public class MFEventBus
 			unregister(delegate);
 		}
 
-		private final void executeInUI(final Runnable runnable)
+		private final void executeInUI(final IApplicationEvent event, final Runnable runnable)
 		{
+			if (event == null)
+			{
+				// shall not happen
+				return;
+			}
+
 			final UI listenerUI = checkExpiredAndGetUI();
 			if (listenerUI == null)
 			{
 				// expired
+				return;
+			}
+
+			// Skip events which are not for our UI
+			final String bpartner_uuid = MFProcurementUI.getBpartner_uuid(listenerUI);
+			if (!Objects.equals(bpartner_uuid, event.getBpartner_uuid()))
+			{
 				return;
 			}
 
@@ -208,9 +224,23 @@ public class MFEventBus
 		}
 
 		@Subscribe
+		public void onContractChanged(final ContractChangedEvent event)
+		{
+			executeInUI(event, new Runnable()
+			{
+
+				@Override
+				public void run()
+				{
+					delegate.onContractChanged(event);
+				}
+			});
+		}
+
+		@Subscribe
 		public void onRfqChanged(final RfqChangedEvent event)
 		{
-			executeInUI(new Runnable()
+			executeInUI(event, new Runnable()
 			{
 
 				@Override
@@ -220,6 +250,21 @@ public class MFEventBus
 				}
 			});
 		}
+
+		@Subscribe
+		public void onProductSupplyChanged(final ProductSupplyChangedEvent event)
+		{
+			executeInUI(event, new Runnable()
+			{
+
+				@Override
+				public void run()
+				{
+					delegate.onProductSupplyChanged(event);
+				}
+			});
+		}
+
 	}
 
 	private final PostAfterCommitCollector getPostAfterCommit()

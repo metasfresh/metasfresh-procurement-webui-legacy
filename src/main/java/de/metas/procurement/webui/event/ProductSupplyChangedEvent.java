@@ -1,8 +1,12 @@
 package de.metas.procurement.webui.event;
 
+import java.math.BigDecimal;
+import java.util.Date;
+
 import com.google.gwt.thirdparty.guava.common.base.Objects;
 
-import de.metas.procurement.webui.model.Rfq;
+import de.metas.procurement.webui.model.Product;
+import de.metas.procurement.webui.model.ProductSupply;
 
 /*
  * #%L
@@ -26,25 +30,26 @@ import de.metas.procurement.webui.model.Rfq;
  * #L%
  */
 
-public class RfqChangedEvent implements IApplicationEvent
+public class ProductSupplyChangedEvent implements IApplicationEvent
 {
-	public static final RfqChangedEvent of(final Rfq rfq)
+
+	public static final ProductSupplyChangedEvent of(final ProductSupply productSupply)
 	{
-		return new RfqChangedEvent(rfq);
+		return new ProductSupplyChangedEvent(productSupply);
 	}
 
 	private final String bpartner_uuid;
-	private final long rfq_id;
-	private final String rfq_uuid;
-	private final boolean closed;
+	private final Product product;
+	private final Date day;
+	private final BigDecimal qty;
 
-	private RfqChangedEvent(final Rfq rfq)
+	private ProductSupplyChangedEvent(final ProductSupply productSupply)
 	{
 		super();
-		this.bpartner_uuid = rfq.getBpartner().getUuid();
-		this.rfq_id = rfq.getId();
-		this.rfq_uuid = rfq.getUuid();
-		this.closed = rfq.isClosed();
+		this.bpartner_uuid = productSupply.getBpartner().getUuid();
+		this.product = productSupply.getProduct();
+		this.day = (Date)productSupply.getDay().clone();
+		this.qty = productSupply.getQty();
 	}
 
 	@Override
@@ -52,8 +57,9 @@ public class RfqChangedEvent implements IApplicationEvent
 	{
 		return Objects.toStringHelper(this)
 				.add("bpartner_uuid", bpartner_uuid)
-				.add("rfq_id", rfq_id)
-				.add("closed", closed)
+				.add("product", product)
+				.add("day", day)
+				.add("qty", qty)
 				.toString();
 	}
 
@@ -63,18 +69,18 @@ public class RfqChangedEvent implements IApplicationEvent
 		return bpartner_uuid;
 	}
 
-	public long getRfq_id()
+	public Date getDay()
 	{
-		return rfq_id;
+		return (Date)day.clone(); 
+	}
+
+	public Product getProduct()
+	{
+		return product;
 	}
 	
-	public String getRfq_uuid()
+	public BigDecimal getQty()
 	{
-		return rfq_uuid;
-	}
-	
-	public boolean isClosed()
-	{
-		return closed;
+		return qty;
 	}
 }

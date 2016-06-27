@@ -2,9 +2,18 @@ package de.metas.procurement.webui.ui.model;
 
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
+
+import com.google.gwt.thirdparty.guava.common.base.Objects;
 import com.vaadin.data.util.BeanItemContainer;
 
+import de.metas.procurement.webui.Application;
+import de.metas.procurement.webui.event.MFEventBus;
 import de.metas.procurement.webui.event.RfqChangedEvent;
+import de.metas.procurement.webui.event.UIApplicationEventListenerAdapter;
+import de.metas.procurement.webui.model.User;
+import de.metas.procurement.webui.service.IRfQService;
 
 /*
  * #%L
@@ -31,15 +40,78 @@ import de.metas.procurement.webui.event.RfqChangedEvent;
 @SuppressWarnings("serial")
 public class RfqHeaderContainer extends BeanItemContainer<RfqHeader>
 {
+	@Autowired
+	@Lazy
+	private IRfQService rfqService;
+	@Autowired
+	private MFEventBus applicationEventBus;
 
-	public RfqHeaderContainer(final List<RfqHeader> activeRfqs)
+	private final User user;
+
+	public RfqHeaderContainer(final User user)
 	{
-		super(RfqHeader.class, activeRfqs);
+		super(RfqHeader.class);
+		Application.autowire(this);
+
+		this.user = user;
+
+		applicationEventBus.register(new UIApplicationEventListenerAdapter()
+		{
+			@Override
+			public void onRfqChanged(final RfqChangedEvent event)
+			{
+				notifyRfqChanged(event);
+			}
+		});
+	}
+
+	public void loadAll()
+	{
+		removeAllItems();
+
+		final List<RfqHeader> activeRfqs = rfqService.getActiveRfqHeaders(user);
+		addAll(activeRfqs);
 	}
 
 	public void notifyRfqChanged(final RfqChangedEvent event)
 	{
-		// TODO FRESH-402 implement
+		RfqHeader rfqHeader = getRfqHeaderByUuid(event.getRfq_uuid());
+		if(rfqHeader == null)
+		{
+			if(event.isClosed())
+			{
+				// skip adding it
+				return;
+			}
+			
+			// create and add new
+			rfqHeader = rfqService.getActiveRfqHeaderById(event.getRfq_id());
+			if(rfqHeader != null)
+			{
+				addBean(rfqHeader);
+			}
+			
+			return;
+		}
+
+		if (event.isClosed())
+		{
+			// TODO: shall we notify the user too?
+			removeItem(rfqHeader);
+		}		
+	}
+
+	private RfqHeader getRfqHeaderByUuid(final String rfq_uuid)
+	{
+		for (final RfqHeader rfqHeader : getAllItemIds())
+		{
+			if (Objects.equal(rfq_uuid, rfqHeader.getRfq_uuid()))
+			{
+				return rfqHeader;
+			}
+		}
+		
+		return null;
 	}
 
 }

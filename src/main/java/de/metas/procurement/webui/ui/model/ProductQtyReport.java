@@ -132,7 +132,7 @@ public final class ProductQtyReport implements ISendService.ISendAwareBean
 	{
 		return product.getPackingInfo(locale);
 	}
-
+	
 	public Date getDay()
 	{
 		return (Date)day.clone();

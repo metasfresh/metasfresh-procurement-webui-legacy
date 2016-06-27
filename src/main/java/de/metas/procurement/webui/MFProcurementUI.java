@@ -17,6 +17,7 @@ import com.google.gwt.thirdparty.guava.common.base.Supplier;
 import com.google.gwt.thirdparty.guava.common.eventbus.Subscribe;
 import com.vaadin.annotations.JavaScript;
 import com.vaadin.annotations.PreserveOnRefresh;
+import com.vaadin.annotations.Push;
 import com.vaadin.annotations.Theme;
 import com.vaadin.annotations.Widgetset;
 import com.vaadin.server.Page;
@@ -63,9 +64,30 @@ import fi.jasoft.qrcode.QRCode;
 @Theme(Constants.THEME_NAME)
 @PreserveOnRefresh
 @JavaScript({ JavascriptUtils.RESOURCE_JQuery, JavascriptUtils.RESOURCE_MainJS, JavascriptUtils.RESOURCE_Swiped })
+@Push
 public class MFProcurementUI extends UI
 {
-
+	public static final String getBpartner_uuid(final UI ui)
+	{
+		if (ui == null)
+		{
+			return null;
+		}
+		if(!(ui instanceof MFProcurementUI))
+		{
+			return null;
+		}
+		
+		final MFProcurementUI procurementUI = (MFProcurementUI)ui;
+		MFSession mfSession = procurementUI.getMFSession();
+		if(mfSession == null)
+		{
+			return null;
+		}
+		
+		return mfSession.getBpartner_uuid();
+	}
+	
 	private final transient Logger logger = LoggerFactory.getLogger(getClass());
 
 	private static final String STYLE_QRCodeWindow = "qr-code-window";

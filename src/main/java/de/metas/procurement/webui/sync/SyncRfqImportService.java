@@ -16,6 +16,7 @@ import de.metas.procurement.sync.protocol.SyncProduct;
 import de.metas.procurement.sync.protocol.SyncProductSupply;
 import de.metas.procurement.sync.protocol.SyncRfQ;
 import de.metas.procurement.webui.event.MFEventBus;
+import de.metas.procurement.webui.event.ProductSupplyChangedEvent;
 import de.metas.procurement.webui.event.RfqChangedEvent;
 import de.metas.procurement.webui.model.BPartner;
 import de.metas.procurement.webui.model.ContractLine;
@@ -133,7 +134,7 @@ public class SyncRfqImportService extends AbstractSyncImportService
 		rfqRepo.save(rfq);
 		logger.debug("Imported: {} -> {}", syncRfQ, rfq);
 
-		applicationEventBus.post(RfqChangedEvent.of(rfq.getId()));
+		applicationEventBus.post(RfqChangedEvent.of(rfq));
 		
 		return rfq;
 	}
@@ -159,6 +160,7 @@ public class SyncRfqImportService extends AbstractSyncImportService
 		rfq.setClosed(true);
 		rfq.setWinner(syncRfQCloseEvent.isWinner());
 		rfqRepo.save(rfq);
+		applicationEventBus.post(RfqChangedEvent.of(rfq));
 
 		if (syncRfQCloseEvent.isWinner())
 		{
@@ -173,8 +175,6 @@ public class SyncRfqImportService extends AbstractSyncImportService
 				}
 			}
 		}
-		
-		applicationEventBus.post(RfqChangedEvent.of(rfq.getId()));
 	}
 
 	private void importPlannedProductSupply(final SyncProductSupply syncProductSupply, final BPartner bpartner)
@@ -228,6 +228,6 @@ public class SyncRfqImportService extends AbstractSyncImportService
 		// Save the product supply
 		productSupplyRepo.save(productSupply);
 		
-		// TODO: FRESH-402: shall we notify the UI?
+		applicationEventBus.post(ProductSupplyChangedEvent.of(productSupply));
 	}
 }

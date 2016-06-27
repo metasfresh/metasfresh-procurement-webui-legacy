@@ -81,6 +81,25 @@ public class RfQService implements IRfQService
 				.immutableSortedCopy(rfqHeaders);
 	}
 
+	@Override
+	public RfqHeader getActiveRfqHeaderById(final long rfq_id)
+	{
+		Rfq rfq = rfqRepo.findOne(rfq_id);
+		if (rfq == null)
+		{
+			return null;
+		}
+		
+		if(rfq.isClosed())
+		{
+			return null;
+		}
+		
+		final List<RfqQuantityReport> rfqQuantities = retrieveRfqQuantityReports(rfq);
+		final RfqHeader rfqHeader = RfqHeader.of(rfq, rfqQuantities);
+		return rfqHeader;
+	}
+
 	private List<RfqQuantityReport> retrieveRfqQuantityReports(final Rfq rfq)
 	{
 		Preconditions.checkNotNull(rfq, "rfq is null");

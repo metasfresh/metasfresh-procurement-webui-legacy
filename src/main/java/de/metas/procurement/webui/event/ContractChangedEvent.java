@@ -1,9 +1,6 @@
 package de.metas.procurement.webui.event;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.vaadin.ui.UI;
+import com.google.gwt.thirdparty.guava.common.base.Objects;
 
 /*
  * #%L
@@ -27,42 +24,40 @@ import com.vaadin.ui.UI;
  * #L%
  */
 
-public class UIApplicationEventListenerAdapter implements IApplicationEventListener
+public class ContractChangedEvent implements IApplicationEvent
 {
-	private static final Logger logger = LoggerFactory.getLogger(UIApplicationEventListenerAdapter.class);
-	private final UI ui;
+	public static final ContractChangedEvent of(final String bpartner_uuid, final long contract_id)
+	{
+		return new ContractChangedEvent(bpartner_uuid, contract_id);
+	}
 
-	public UIApplicationEventListenerAdapter()
+	private final String bpartner_uuid;
+	private final long contract_id;
+
+	private ContractChangedEvent(final String bpartner_uuid, final long contract_id)
 	{
 		super();
-		ui = UI.getCurrent();
-		if (ui == null)
-		{
-			logger.warn("Failed getting the UI. Ignored.", new RuntimeException("trace"));
-		}
+		this.bpartner_uuid = bpartner_uuid;
+		this.contract_id = contract_id;
 	}
 
 	@Override
-	public final UI getUI()
+	public String toString()
 	{
-		return ui;
+		return Objects.toStringHelper(this)
+				.add("bpartner_uuid", bpartner_uuid)
+				.add("contract_id", contract_id)
+				.toString();
 	}
 
 	@Override
-	public void onContractChanged(final ContractChangedEvent event)
+	public String getBpartner_uuid()
 	{
-		// nothing
+		return bpartner_uuid;
 	}
 
-	@Override
-	public void onRfqChanged(final RfqChangedEvent event)
+	public long getRfq_id()
 	{
-		// nothing
-	}
-
-	@Override
-	public void onProductSupplyChanged(final ProductSupplyChangedEvent event)
-	{
-		// nothing
+		return contract_id;
 	}
 }

@@ -24,5 +24,5 @@ package de.metas.procurement.webui.event;
 
 public interface IApplicationEvent
 {
-
+	public String getBpartner_uuid();
 }
